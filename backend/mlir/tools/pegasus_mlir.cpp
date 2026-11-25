@@ -9,10 +9,15 @@
 //   pegasus-mlir roundtrip <in.pirb>           import, verify, print, parse,
 //       verify, print again (identical text), export both modules (each
 //       byte-identical to the input PIRB apart from the verified flag)
+//   pegasus-mlir lower <in.pirb> <out.ll>      the MLIR native path
+//       (spec/mlir.md §5): import verified PIRB, lower pg to the LLVM
+//       dialect, translate to LLVM IR; a drop-in for `pegasus-native`
 //
-// Exit status: 0 ok, 1 verification or round-trip failure, 2 usage or I/O,
-// 3 malformed PIRB.
+// Exit status: 0 ok, 1 verification or round-trip failure (for `lower`:
+// outside the native subset, "not supported by the native backend yet"),
+// 2 usage or I/O, 3 malformed PIRB, 4 internal lowering failure.
 #include "pegasus/mlir/Bridge.h"
+#include "pegasus/mlir/Lowering.h"
 #include "pegasus/mlir/PegasusDialect.h"
 #include "pirb.hpp"
 #include "pirb_write.hpp"
@@ -54,7 +59,7 @@ int fail(const std::string &msg, int code = 1) {
 
 int main(int argc, char **argv) {
   if (argc < 3) {
-    std::fprintf(stderr, "usage: pegasus-mlir (import|export|verify|roundtrip) <in> [out]\n");
+    std::fprintf(stderr, "usage: pegasus-mlir (import|export|verify|roundtrip|lower) <in> [out]\n");
     return 2;
   }
   std::string cmd = argv[1], data;
@@ -88,6 +93,27 @@ int main(int argc, char **argv) {
   }
   auto mod = pegasus::pg::importModule(ctx, pm);
   if (mlir::failed(mlir::verify(*mod))) return fail("the imported module does not verify");
+
+  if (cmd == "lower") {
+    if (argc != 4) return fail("lower needs an output path", 2);
+    using pegasus::pg::LowerStatus;
+    auto r = pegasus::pg::lowerToLLVM(*mod);
+    switch (r.status) {
+    case LowerStatus::Ok: break;
+    case LowerStatus::NoEntry: return fail(r.message, 2);
+    case LowerStatus::Unsupported: return fail("not supported by the native backend yet: " + r.message, 1);
+    case LowerStatus::Inconsistent: return fail("malformed PIRB: " + r.message, 3);
+    case LowerStatus::Failed: return fail("internal error in the MLIR lowering: " + r.message, 4);
+    }
+    if (mlir::failed(mlir::verify(*mod))) return fail("internal error: the lowered module does not verify", 4);
+    std::string ir, err;
+    if (std::getenv("PEGASUS_MLIR_DUMP")) mod->print(llvm::errs());
+    if (!pegasus::pg::translateToLLVMIR(*mod, ir, err)) return fail("internal error: " + err, 4);
+    std::ofstream o(argv[3], std::ios::binary);
+    o << ir;
+    return o ? 0 : fail(std::string("cannot write ") + argv[3], 2);
+  }
+
   std::string text = print(*mod);
 
   if (cmd == "import") {

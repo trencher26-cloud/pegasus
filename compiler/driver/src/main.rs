@@ -10,13 +10,17 @@
 //!                                certify PIRB written outside the frontend (unverified, e.g.
 //!                                by `pegasus-mlir export`): run the PIR verifier, write it
 //!                                marked verified
-//!     pegasus build <file.peg> <out>
+//!     pegasus build [--backend=direct|mlir] <file.peg> <out>
 //!                                compile to a native executable (spec/native.md): PIRB ->
-//!                                `pegasus-native` -> LLVM IR -> clang, linked with the runtime
+//!                                LLVM IR -> clang, linked with the runtime. The LLVM IR comes
+//!                                from `pegasus-native` (the direct emitter, the default) or,
+//!                                with `--backend=mlir`, from `pegasus-mlir lower` (the pg
+//!                                dialect lowered through MLIR, spec/mlir.md §5)
 //!
 //! `build` finds its tools through PEGASUS_NATIVE (the pegasus-native
-//! executable), PEGASUS_RT (the runtime: pegasus_rt.c or a built library)
-//! and PEGASUS_CLANG (default `clang`).
+//! executable) or PEGASUS_MLIR (the pegasus-mlir executable), PEGASUS_RT (the
+//! runtime: pegasus_rt.c or a built library) and PEGASUS_CLANG (default
+//! `clang`).
 //!
 //! The package root is the directory of the given file; `mod x` loads
 //! `x.peg` or `x/mod.peg` relative to it. Exit status: 0 on success; 1 if
@@ -30,18 +34,32 @@ use std::process::ExitCode;
 
 fn usage() -> ExitCode {
     eprintln!("usage: pegasus (check | hir | pir | run) <file.peg>");
-    eprintln!("       pegasus (pirb | build) <file.peg> <output>");
+    eprintln!("       pegasus pirb <file.peg> <output>");
+    eprintln!("       pegasus build [--backend=direct|mlir] <file.peg> <output>");
     eprintln!("       pegasus pirb-verify <in.pirb> <out.pirb>");
     ExitCode::from(2)
 }
 
-/// `pegasus build`: PIRB -> pegasus-native -> LLVM IR -> clang.
-fn build(pirb: &[u8], out: &str) -> ExitCode {
+/// Where `pegasus build` gets its LLVM IR.
+#[derive(Clone, Copy, PartialEq)]
+enum Backend {
+    /// `pegasus-native`: the direct LLVM IR emitter (spec/native.md).
+    Direct,
+    /// `pegasus-mlir lower`: pg lowered through MLIR (spec/mlir.md §5).
+    Mlir,
+}
+
+/// `pegasus build`: PIRB -> LLVM IR (either backend) -> clang.
+fn build(pirb: &[u8], out: &str, backend: Backend) -> ExitCode {
     let need = |var: &str| match std::env::var(var) {
         Ok(v) if !v.is_empty() => Ok(v),
         _ => Err(format!("error: set {var} for `pegasus build`")),
     };
-    let (native, rt) = match (need("PEGASUS_NATIVE"), need("PEGASUS_RT")) {
+    let tool_var = match backend {
+        Backend::Direct => "PEGASUS_NATIVE",
+        Backend::Mlir => "PEGASUS_MLIR",
+    };
+    let (native, rt) = match (need(tool_var), need("PEGASUS_RT")) {
         (Ok(n), Ok(r)) => (n, r),
         (Err(e), _) | (_, Err(e)) => {
             eprintln!("{e}");
@@ -65,10 +83,11 @@ fn build(pirb: &[u8], out: &str) -> ExitCode {
             }
         }
     };
-    let r = run(std::process::Command::new(&native)
-        .arg(&pirb_path)
-        .arg(&ll_path))
-    .and_then(|()| {
+    let mut emit = std::process::Command::new(&native);
+    if backend == Backend::Mlir {
+        emit.arg("lower");
+    }
+    let r = run(emit.arg(&pirb_path).arg(&ll_path)).and_then(|()| {
         run(std::process::Command::new(&clang).args([
             "-O2",
             "-Wno-override-module",
@@ -135,6 +154,22 @@ fn main() -> ExitCode {
     if let [c, i, o] = args.as_slice() {
         if c == "pirb-verify" {
             return pirb_verify(i, o);
+        }
+    }
+    // `build --backend=...`: the only option; it selects the IR emitter.
+    let mut args = args;
+    let mut backend = Backend::Direct;
+    if args.len() == 4 && args[0] == "build" {
+        if let Some(b) = args[1].strip_prefix("--backend=") {
+            backend = match b {
+                "direct" => Backend::Direct,
+                "mlir" => Backend::Mlir,
+                _ => {
+                    eprintln!("error: unknown backend `{b}` (expected `direct` or `mlir`)");
+                    return usage();
+                }
+            };
+            args.remove(1);
         }
     }
     let (cmd, path, output) = match args.as_slice() {
@@ -262,7 +297,7 @@ fn main() -> ExitCode {
         Outcome::Bytes(b) => {
             let out = output.expect("pirb and build take an output path");
             if cmd == "build" {
-                return build(&b, &out);
+                return build(&b, &out, backend);
             }
             if let Err(e) = std::fs::write(&out, b) {
                 eprintln!("error: cannot write {out}: {e}");

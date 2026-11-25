@@ -18,8 +18,8 @@
 3. Every module in backend/mlir/tests/semantic_invalid passes MLIR
    verification but is invalid PIR: it must export (as unverified PIRB, flag
    byte 0), `pegasus pirb-verify` must reject it with the message on its
-   first line and write no file, and `pegasus-native` must refuse the
-   unverified export.
+   first line and write no file, and both native paths (`pegasus-native`
+   and `pegasus-mlir lower`) must refuse the unverified export.
 4. With --mutated, programs of a NUL-separated corpus are round-tripped
    through both paths of 1. Programs the frontend rejects, or that have no
    main, are skipped (counted); any other compiler failure fails the test.
@@ -119,6 +119,10 @@ def main():
         r4 = run([native, unverified, path(".ll")])
         if r4.returncode == 0 or "not marked verified" not in r4.stderr:
             bad.append(f"{name}: pegasus-native must refuse the unverified export; got exit {r4.returncode}")
+            continue
+        r5 = run([tool, "lower", unverified, path(".ll")])
+        if r5.returncode != 3 or "not marked verified" not in r5.stderr:
+            bad.append(f"{name}: pegasus-mlir lower must refuse the unverified export; got exit {r5.returncode}")
             continue
         semantic += 1
 

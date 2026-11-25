@@ -71,7 +71,7 @@ decision by the project owner.
 
 | ID | Issue | Status |
 |---|---|---|
-| NATIVE-1 | Direct LLVM IR text emission only; the MLIR dialect and importer (same PIRB contract, same llvm-project commit) are not started. MLIR is not available in this build environment; CI provisions clang + MLIR from llvm-project `c13b7485b879` (PIR0.4.1). | Next backend stage (PIR0.5). |
+| NATIVE-1 | Direct LLVM IR text emission only; the MLIR dialect and importer (same PIRB contract, same llvm-project commit) are not started. MLIR is not available in this build environment; CI provisions clang + MLIR from llvm-project `c13b7485b879` (PIR0.4.1). | Resolved by PIR0.5: dialect and importer (part 1), lowering through MLIR as a second native path (part 2, MLIR-2). |
 | NATIVE-2 | Subset: floats, `char`, `str`, enums, closures and function values, raw pointers, regions and `extern` calls are refused as unsupported. | Expand behind the differential tests. |
 | NATIVE-3 | No backtrace on a trap (the interpreter prints one). | Needs debug info / unwinding. |
 | NATIVE-4 | No step limit natively (an interpreter test guard, not semantics); the 100 000-frame depth limit is enforced, on a 4 GiB reserved stack. | By design. |
@@ -86,5 +86,7 @@ decision by the project owner.
 | ID | Issue | Status |
 |---|---|---|
 | MLIR-1 | Operations print in MLIR's generic form (`"pg.bin"(...) <{...}>`); custom assembly formats would be easier to read. | Open (cosmetic). |
-| MLIR-2 | Lowering `pg` to LLVM through MLIR, and the three-way differential test (interpreter, direct emitter, MLIR path). | PIR0.5, second part. |
+| MLIR-2 | Lowering `pg` to LLVM through MLIR, and the three-way differential test (interpreter, direct emitter, MLIR path). | Implemented in PIR0.5, second part (`pegasus-mlir lower`, `pegasus build --backend=mlir`, `native_diff.py --mlir`); closed when that PR merges. |
+| MLIR-4 | The lowering reproduces the direct emitter's native subset only (spec/native.md §2: no floats, `char`, `str`, enums, closures, externs). Extending the subset means extending both backends together, with the three-way test. | Open (with NATIVE subset growth). |
+| MLIR-5 | No MLIR optimization passes run before lowering; LLVM `-O2` does all optimization. Running canonicalization or custom `pg` passes first needs canonicalizers and folders for the dialect. | Open. |
 | MLIR-3 | The 128-bit division helper loops 128 times on every platform (review of PR #2); benchmark it, and consider a faster path where compiler-rt is available. | Open. |
