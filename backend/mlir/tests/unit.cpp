@@ -176,6 +176,17 @@ int main() {
   // Finding 2: identifiers that do not fit in 32 bits.
   expectExport(variant({{"VID", "4294967296"}}), "is not a 32-bit id", "pg.v = 2^32 (would narrow to 0)");
   expectExport(variant({{"VID", "-1"}}), "is not a 32-bit id", "a negative pg.v");
+  {
+    // pg.v is unconstrained by ODS: a wider attribute must be refused, not
+    // read with getInt() (review of PR #3).
+    std::string t = variant({});
+    const std::string v = "{pg.v = 0 : i64}";
+    t.replace(t.find(v), v.size(), "{pg.v = 0 : i128}");
+    expectExport(t, "pg.v must be an i64 attribute", "an i128 pg.v");
+    t = variant({});
+    t.replace(t.find(v), v.size(), "{pg.v = 18446744073709551616 : i128}");
+    expectExport(t, "pg.v must be an i64 attribute", "an i128 pg.v beyond 64 bits");
+  }
   // Finding 3: the entry trampoline must be exactly the importer's.
   const std::string tramp =
       "module attributes {pg.pirb_minor = 0 : i64, pg.structs = [], pg.enums = []} {\n"

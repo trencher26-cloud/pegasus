@@ -45,7 +45,13 @@ are known; places type-check against their slot or reference, including
 struct fields from `pg.structs`; `pg.store_ref` and exclusive reborrows need
 an exclusive reference; borrow results have the borrow's exclusivity; switch
 keys are `i128` and match the destinations; branch arguments match the
-successor's block arguments (MLIR's `BranchOpInterface` check).
+successor's block arguments (MLIR's `BranchOpInterface` check); aggregates
+agree with their result types and the module's definitions (`pg.struct` and
+`pg.variant` ids equal the result type's and their operands match the
+fields; `pg.variant_field` variant and field indices are in range and the
+result is that field's type; `pg.tuple`, `pg.array` and `pg.repeat` match
+their element types and lengths; `pg.extract` indices are in range;
+`pg.tag` yields an integer).
 
 ## 3. Import and export
 
@@ -69,7 +75,8 @@ branches to it, and export drops it.
   entry block (trampoline added, and dropped on export), refusal of a
   non-Pegasus module, and modules that verify but must not export: malformed
   `pg.structs`, `pg.pirb_minor`, `pg.entry` or `pg.block_params`; a struct
-  type without a definition; value ids outside 32 bits; and entry blocks
+  type without a definition; value ids outside 32 bits or `pg.v` not an
+  `i64`; and entry blocks
   marked as trampolines that are not exactly the importer's.
 
 Export runs the MLIR verifier first and checks every module attribute it

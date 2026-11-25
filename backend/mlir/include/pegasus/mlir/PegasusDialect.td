@@ -170,38 +170,47 @@ def Pg_StoreRefOp : Pg_Op<"store_ref"> {
 def Pg_TupleOp : Pg_Op<"tuple"> {
   let arguments = (ins Variadic<AnyType>:$elems);
   let results = (outs Pg_TupleType:$result);
+  let hasVerifier = 1;
 }
 def Pg_StructOp : Pg_Op<"struct"> {
   let arguments = (ins Variadic<AnyType>:$fields, I64Attr:$id);
   let results = (outs Pg_StructType:$result);
+  let hasVerifier = 1;
 }
 def Pg_VariantOp : Pg_Op<"variant"> {
   let arguments = (ins Variadic<AnyType>:$fields, I64Attr:$id, I64Attr:$variant);
   let results = (outs Pg_EnumType:$result);
+  let hasVerifier = 1;
 }
 def Pg_ArrayOp : Pg_Op<"array"> {
   let arguments = (ins Variadic<AnyType>:$elems);
   let results = (outs Pg_ArrayType:$result);
+  let hasVerifier = 1;
 }
 def Pg_RepeatOp : Pg_Op<"repeat"> {
   let arguments = (ins AnyType:$value, I64Attr:$count);
   let results = (outs Pg_ArrayType:$result);
+  let hasVerifier = 1;
 }
 def Pg_ExtractOp : Pg_Op<"extract"> {
   let arguments = (ins AnyType:$aggregate, I64Attr:$index);
   let results = (outs AnyType:$result);
+  let hasVerifier = 1;
 }
 def Pg_ExtractIndexOp : Pg_Op<"extract_index"> {
   let arguments = (ins Pg_ArrayType:$array, AnyType:$index);
   let results = (outs AnyType:$result);
+  let hasVerifier = 1;
 }
 def Pg_TagOp : Pg_Op<"tag"> {
   let arguments = (ins Pg_EnumType:$value);
   let results = (outs AnyType:$result);
+  let hasVerifier = 1;
 }
 def Pg_VariantFieldOp : Pg_Op<"variant_field"> {
   let arguments = (ins Pg_EnumType:$value, I64Attr:$variant, I64Attr:$index);
   let results = (outs AnyType:$result);
+  let hasVerifier = 1;
 }
 def Pg_CallOp : Pg_Op<"call"> {
   let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<AnyType>:$args);

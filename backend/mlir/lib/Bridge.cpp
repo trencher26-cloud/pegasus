@@ -596,7 +596,13 @@ private:
           continue;
         }
         if (op.getNumResults() > 1) fail("@" + f.name + ": an operation with several results");
-        if (op.getNumResults() == 1) def(op.getResult(0), attr<IntegerAttr>(&op, "pg.v").getInt());
+        if (op.getNumResults() == 1) {
+          // pg.v is a discardable attribute, unconstrained by ODS: require
+          // the i64 the importer writes before reading it as one.
+          auto v = attr<IntegerAttr>(&op, "pg.v");
+          if (!v.getType().isInteger(64)) fail("@" + f.name + ": pg.v must be an i64 attribute");
+          def(op.getResult(0), v.getInt());
+        }
       }
     if (!fn->hasAttr("pg.named_slots")) f.slot_names.clear();
     for (pir::u32 k = 0; k < types.size(); ++k) {

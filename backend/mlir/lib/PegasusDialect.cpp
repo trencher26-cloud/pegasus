@@ -191,6 +191,43 @@ FailureOr<SmallVector<Type>> structFields(Operation *op, unsigned id) {
   return out;
 }
 
+// The variants of enum `id` (each a list of field types), from pg.enums.
+FailureOr<SmallVector<SmallVector<Type>>> enumVariants(Operation *op, unsigned id) {
+  auto mod = op->getParentOfType<ModuleOp>();
+  auto defs = mod ? mod->getAttrOfType<ArrayAttr>("pg.enums") : ArrayAttr();
+  if (!defs || id >= defs.size())
+    return op->emitOpError("enum id ") << id << " has no definition in pg.enums", failure();
+  auto d = dyn_cast<DictionaryAttr>(defs[id]);
+  auto vs = d ? d.getAs<ArrayAttr>("variant_types") : ArrayAttr();
+  if (!vs)
+    return op->emitOpError("malformed pg.enums entry ") << id, failure();
+  SmallVector<SmallVector<Type>> out;
+  for (Attribute v : vs) {
+    auto fs = dyn_cast<ArrayAttr>(v);
+    if (!fs)
+      return op->emitOpError("malformed pg.enums entry ") << id, failure();
+    SmallVector<Type> tys;
+    for (Attribute f : fs) {
+      auto ta = dyn_cast<TypeAttr>(f);
+      if (!ta)
+        return op->emitOpError("malformed pg.enums entry ") << id, failure();
+      tys.push_back(ta.getValue());
+    }
+    out.push_back(tys);
+  }
+  return out;
+}
+
+// Operand types equal to the expected element types, in order.
+LogicalResult expectTypes(Operation *op, ValueRange vals, ArrayRef<Type> want, StringRef what) {
+  if (vals.size() != want.size())
+    return op->emitOpError() << "has " << vals.size() << " " << what << ", the type has " << want.size();
+  for (size_t k = 0; k < want.size(); ++k)
+    if (vals[k].getType() != want[k])
+      return op->emitOpError() << what << " #" << k << " has type " << vals[k].getType() << ", expected " << want[k];
+  return success();
+}
+
 // The type of the place `base.path`, consuming one index operand per -1.
 FailureOr<Type> placeType(Operation *op, Type base, ArrayRef<int64_t> path, ValueRange indices) {
   unsigned next = 0;
@@ -325,6 +362,96 @@ LogicalResult StoreRefOp::verify() {
     return emitOpError("store through a shared reference");
   auto t = placeType(*this, src.getPointee(), getPath(), getIndices());
   return failed(t) ? failure() : expectType(*this, getValue().getType(), *t, "stored value");
+}
+
+// Aggregates and enums: the operation's attributes and operands agree with
+// its result type and with the module's struct and enum definitions.
+LogicalResult TupleOp::verify() {
+  return expectTypes(*this, getElems(), cast<TupleType>(getType()).getElems(), "elements");
+}
+LogicalResult StructOp::verify() {
+  auto st = cast<StructType>(getType());
+  if (getId() != static_cast<int64_t>(st.getId()))
+    return emitOpError("id ") << getId() << " differs from the result type " << st;
+  auto fs = structFields(*this, st.getId());
+  return failed(fs) ? failure() : expectTypes(*this, getFields(), *fs, "fields");
+}
+LogicalResult VariantOp::verify() {
+  auto et = cast<EnumType>(getType());
+  if (getId() != static_cast<int64_t>(et.getId()))
+    return emitOpError("id ") << getId() << " differs from the result type " << et;
+  auto vs = enumVariants(*this, et.getId());
+  if (failed(vs))
+    return failure();
+  if (getVariant() < 0 || static_cast<uint64_t>(getVariant()) >= vs->size())
+    return emitOpError("variant ") << getVariant() << " out of range (enum has " << vs->size() << ")";
+  return expectTypes(*this, getFields(), (*vs)[getVariant()], "fields");
+}
+LogicalResult VariantFieldOp::verify() {
+  auto vs = enumVariants(*this, cast<EnumType>(getValue().getType()).getId());
+  if (failed(vs))
+    return failure();
+  if (getVariant() < 0 || static_cast<uint64_t>(getVariant()) >= vs->size())
+    return emitOpError("variant ") << getVariant() << " out of range (enum has " << vs->size() << ")";
+  auto &fs = (*vs)[getVariant()];
+  if (getIndex() < 0 || static_cast<uint64_t>(getIndex()) >= fs.size())
+    return emitOpError("field ") << getIndex() << " out of range (variant has " << fs.size() << ")";
+  if (getType() != fs[getIndex()])
+    return emitOpError("result type ") << getType() << " differs from the field's " << fs[getIndex()];
+  return success();
+}
+LogicalResult TagOp::verify() {
+  if (!isa<IntType>(getType()))
+    return emitOpError("a tag is an integer");
+  return failed(enumVariants(*this, cast<EnumType>(getValue().getType()).getId())) ? failure() : success();
+}
+LogicalResult ArrayOp::verify() {
+  auto at = cast<ArrayType>(getType());
+  if (getElems().size() != at.getLen())
+    return emitOpError("has ") << getElems().size() << " elements, the array type has " << at.getLen();
+  for (auto [k, v] : llvm::enumerate(getElems()))
+    if (v.getType() != at.getElem())
+      return emitOpError("element #") << k << " has type " << v.getType() << ", expected " << at.getElem();
+  return success();
+}
+LogicalResult RepeatOp::verify() {
+  auto at = cast<ArrayType>(getType());
+  if (static_cast<uint64_t>(getCount()) != at.getLen())
+    return emitOpError("count ") << static_cast<uint64_t>(getCount()) << " differs from the array length " << at.getLen();
+  if (getValue().getType() != at.getElem())
+    return emitOpError("repeated value has type ") << getValue().getType() << ", expected " << at.getElem();
+  return success();
+}
+LogicalResult ExtractOp::verify() {
+  Type t = getAggregate().getType();
+  int64_t i = getIndex();
+  SmallVector<Type> fs;
+  if (auto tu = dyn_cast<TupleType>(t)) {
+    fs.assign(tu.getElems().begin(), tu.getElems().end());
+  } else if (auto st = dyn_cast<StructType>(t)) {
+    auto f = structFields(*this, st.getId());
+    if (failed(f))
+      return failure();
+    fs = *f;
+  } else if (auto at = dyn_cast<ArrayType>(t)) {
+    if (i < 0 || static_cast<uint64_t>(i) >= at.getLen())
+      return emitOpError("index ") << i << " out of range (array length " << at.getLen() << ")";
+    return getType() == at.getElem() ? success() : emitOpError("result type differs from the element type");
+  } else {
+    return emitOpError("extract from a non-aggregate");
+  }
+  if (i < 0 || static_cast<uint64_t>(i) >= fs.size())
+    return emitOpError("index ") << i << " out of range (" << fs.size() << " fields)";
+  if (getType() != fs[i])
+    return emitOpError("result type ") << getType() << " differs from the field's " << fs[i];
+  return success();
+}
+LogicalResult ExtractIndexOp::verify() {
+  if (!isa<IntType>(getIndex().getType()))
+    return emitOpError("index operand is not an integer");
+  if (getType() != cast<ArrayType>(getArray().getType()).getElem())
+    return emitOpError("result type differs from the element type");
+  return success();
 }
 
 LogicalResult SwitchOp::verify() {

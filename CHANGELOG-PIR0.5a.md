@@ -55,3 +55,20 @@ Windows: first MLIR build with MSVC in this pull request's CI.
 Tests: 16 new negative cases in `mlir_unit` (each module parses and
 verifies; export must fail with a named reason), checked against the pre-fix
 exporter, which crashes or silently mis-exports them.
+
+## Second review of PR #3 (two findings, both fixed)
+
+1. **`pg.v` width.** `pg.v` is a discardable attribute that ODS does not
+   constrain; export now requires an `i64` before reading it (tests: `i128`
+   values in and beyond 64 bits).
+2. **Aggregate and enum consistency.** New dialect verifiers (so every MLIR
+   consumer, and export, which verifies first, gets them): `pg.struct` and
+   `pg.variant` ids must equal the result type's, with operands matching the
+   definition's fields; `pg.variant_field` checks variant and field bounds
+   and the result type; `pg.tuple`, `pg.array`, `pg.repeat`, `pg.extract`,
+   `pg.extract_index` and `pg.tag` check their result types, lengths and
+   indices. 8 new invalid modules; the previous exporter exported each of
+   the checked ones (exit 0), producing inconsistent PIRB.
+
+No false positives: 30 corpus and 858 fuzz-mutated modules still verify and
+round-trip byte-identically.
