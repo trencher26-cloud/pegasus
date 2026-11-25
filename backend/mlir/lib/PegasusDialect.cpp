@@ -82,9 +82,22 @@ static bool isIntKind(Type t, unsigned kind) {
   return i && i.getKind() == kind;
 }
 
-unsigned IntType::getBits() const { return kIntBits[getKind()]; }
-bool IntType::isSigned() const { return getKind() <= 5; }
-StringRef IntType::getKindName() const { return kIntNames[getKind()]; }
+// The accessors never index past the tables: a type with an invalid kind can
+// still be built with IntType::get (getChecked and the verifiers refuse it).
+unsigned IntType::getBits() const { return isValidKind(getKind()) ? kIntBits[getKind()] : 0; }
+bool IntType::isSigned() const { return isValidKind(getKind()) && getKind() <= 5; }
+StringRef IntType::getKindName() const { return isValidKind(getKind()) ? kIntNames[getKind()] : "<invalid>"; }
+
+LogicalResult IntType::verify(function_ref<InFlightDiagnostic()> emitError, unsigned kind) {
+  if (!isValidKind(kind))
+    return emitError() << "invalid integer kind " << kind << " (0-11)";
+  return success();
+}
+LogicalResult FloatType::verify(function_ref<InFlightDiagnostic()> emitError, unsigned kind) {
+  if (!isValidKind(kind))
+    return emitError() << "invalid float kind " << kind << " (0-3)";
+  return success();
+}
 
 Type IntType::parse(AsmParser &p) {
   unsigned k;
@@ -92,7 +105,7 @@ Type IntType::parse(AsmParser &p) {
     return {};
   return IntType::get(p.getContext(), k);
 }
-void IntType::print(AsmPrinter &p) const { p << '<' << kIntNames[getKind()] << '>'; }
+void IntType::print(AsmPrinter &p) const { p << '<' << getKindName() << '>'; }
 
 Type FloatType::parse(AsmParser &p) {
   unsigned k;
@@ -100,7 +113,9 @@ Type FloatType::parse(AsmParser &p) {
     return {};
   return FloatType::get(p.getContext(), k);
 }
-void FloatType::print(AsmPrinter &p) const { p << '<' << kFloatNames[getKind()] << '>'; }
+void FloatType::print(AsmPrinter &p) const {
+  p << '<' << (isValidKind(getKind()) ? kFloatNames[getKind()] : "<invalid>") << '>';
+}
 
 // !pg.tuple<(T, U)>
 Type TupleType::parse(AsmParser &p) {
@@ -305,6 +320,8 @@ LogicalResult ConstOp::verify() {
   // bits above the type's width (`v & !mask(t) == 0`), and a char is a
   // Unicode scalar value.
   if (auto it = dyn_cast<IntType>(t)) {
+    if (!IntType::isValidKind(it.getKind()))
+      return emitOpError("invalid integer kind ") << it.getKind();
     const APInt &bits = cast<IntegerAttr>(v).getValue();
     if (bits.getActiveBits() > it.getBits())
       return emitOpError("integer constant 0x") << llvm::toString(bits, 16, /*Signed=*/false)

@@ -94,3 +94,41 @@ one bits. A `char` constant must also be a Unicode scalar value (a Rust
 `char` always is). 3 new invalid modules (23 in all), each accepted by the
 previous verifier. No false positives: 30 corpus and 858 fuzz-mutated
 modules still verify and round-trip; ctest 18/18.
+
+## Fifth review of PR #3 (consolidated audit, six findings, all fixed)
+
+- **P1, export claimed verification it never did.** `pegasus-mlir export`
+  set the PIRB verified flag after only MLIR's structural verification, so
+  an MLIR-valid but PIR-invalid module became a "verified" file the native
+  backend would consume. Export now writes flags 0 (unverified), which every
+  consumer refuses; the new `pegasus pirb-verify` (`bridge::certify`) runs
+  the Rust verifier and writes the verified file. The verifier is not
+  reimplemented in C++. Four new `backend/mlir/tests/semantic_invalid`
+  modules (bool addition, lossy cast, duplicate switch key, a returned
+  reference to a local slot) verify as MLIR, export with flag byte 0, are
+  rejected by `pirb-verify` with the Rust message (no file written), and are
+  refused by `pegasus-native`. Corpus and fuzz round trips now go through
+  the whole chain and must be byte-identical to the original.
+- **P2, `pg.pirb_minor`.** Export accepted any minor and wrote 1.0 anyway;
+  it now refuses anything above 0 (unit tests: 1 and 70000). The C++
+  reader, writer and exporter share `kPirbMajor`/`kPirbMinor`.
+- **P2, spec.** spec/mlir.md §1 states the contract (MLIR verification is
+  structural; semantic validity is the Rust verifier's) and
+  spec/pir-bridge.md §2.3 documents unverified files and `pirb-verify`.
+- **P2, type kinds.** `!pg.int` and `!pg.float` had no verifier, and the
+  accessors indexed tables with unchecked kinds. Both types now verify
+  (0–11, 0–3), accessors are safe on any value, `pg.const` and export check
+  the kind.
+- **P2, round-trip script.** Compile failures were silently counted as
+  skips; a simulated regression in `tests/run/borrows.peg` passed (exit 0)
+  with the old script and fails with the new one. Only the explicit no-main
+  outcome in `tests/sema/accept` is skipped, listed by name.
+- **P2, char constants.** No Rust verifier change: a Rust `char` is a
+  Unicode scalar by construction and the decoder builds it with
+  `char::from_u32`, so a verifier check would be dead code. Documented at
+  the verifier, and new tests show the decoder (and so `certify`) refuses
+  surrogates and values above U+10FFFF.
+
+Verified locally: cargo fmt, clippy `-D warnings`, workspace tests, ctest
+18/18, round trips of 30 corpus and 858 fuzz-mutated programs through the
+certification chain, byte-identical.

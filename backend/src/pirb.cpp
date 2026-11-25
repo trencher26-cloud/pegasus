@@ -14,7 +14,6 @@ const char *name(IntTy t) {
 
 namespace {
 
-constexpr int kMajor = 1, kMinor = 0;
 
 struct Reader {
   const std::uint8_t *b;
@@ -292,7 +291,7 @@ Module decode(const std::uint8_t *data, std::size_t len) {
   major |= r.byte() << 8;
   int minor = r.byte();
   minor |= r.byte() << 8;
-  if (major != kMajor || minor > kMinor)
+  if (major != kPirbMajor || minor > kPirbMinor)
     throw FormatError("unsupported PIRB version " + std::to_string(major) + "." + std::to_string(minor));
   if (crc32(data, len) != want) throw FormatError("checksum mismatch (corrupted PIRB file)");
   Module m;

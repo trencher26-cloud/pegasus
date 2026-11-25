@@ -144,7 +144,7 @@ if(PEGASUS_BUILD_BACKEND)
     # PIRB -> MLIR -> PIRB is byte-identical and MLIR text round-trips, for
     # every corpus program; the dialect verifier rejects malformed modules.
     add_test(NAME mlir_roundtrip
-      COMMAND ${Python3_EXECUTABLE} tools/mlir_roundtrip.py ${PEGASUS_EXE} $<TARGET_FILE:pegasus-mlir>
+      COMMAND ${Python3_EXECUTABLE} tools/mlir_roundtrip.py ${PEGASUS_EXE} $<TARGET_FILE:pegasus-mlir> $<TARGET_FILE:pegasus-native>
       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
     add_test(NAME mlir_unit COMMAND pegasus-mlir-unit)
   endif()

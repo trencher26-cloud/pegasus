@@ -1,11 +1,14 @@
 // pegasus-mlir: PIRB <-> Pegasus MLIR dialect (spec/mlir.md).
 //
 //   pegasus-mlir import <in.pirb> [out.mlir]   import, verify, print
-//   pegasus-mlir export <in.mlir> <out.pirb>   parse, verify, export
-//   pegasus-mlir verify <in.mlir>              parse and verify
+//   pegasus-mlir export <in.mlir> <out.pirb>   parse, verify, export as
+//       UNVERIFIED PIRB (flags 0): only the Rust PIR verifier may mark PIRB
+//       verified; certify it with `pegasus pirb-verify` (spec/pir-bridge.md
+//       §2.3) before any backend will read it
+//   pegasus-mlir verify <in.mlir>              parse and verify (structure)
 //   pegasus-mlir roundtrip <in.pirb>           import, verify, print, parse,
 //       verify, print again (identical text), export both modules (each
-//       byte-identical to the input PIRB)
+//       byte-identical to the input PIRB apart from the verified flag)
 //
 // Exit status: 0 ok, 1 verification or round-trip failure, 2 usage or I/O,
 // 3 malformed PIRB.
@@ -69,7 +72,9 @@ int main(int argc, char **argv) {
     auto bytes = pegasus::pir::encode(out);
     std::ofstream o(argv[3], std::ios::binary);
     o.write(reinterpret_cast<const char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
-    return o ? 0 : fail(std::string("cannot write ") + argv[3], 2);
+    if (!o) return fail(std::string("cannot write ") + argv[3], 2);
+    std::fprintf(stderr, "wrote unverified PIRB %s; certify it with `pegasus pirb-verify`\n", argv[3]);
+    return 0;
   }
 
   std::vector<std::uint8_t> bytes(data.begin(), data.end());
@@ -94,16 +99,23 @@ int main(int argc, char **argv) {
   }
   if (cmd != "roundtrip") return fail("unknown command " + cmd, 2);
 
+  // Export writes the module unverified; compare with the input re-encoded
+  // that way (tools/mlir_roundtrip.py then certifies the export with the Rust
+  // verifier and compares with the input exactly).
+  pegasus::pir::Module unverified = pm;
+  unverified.flags = pegasus::pir::kFlagUnverified;
+  const auto expected = pegasus::pir::encode(unverified);
   std::string err;
   pegasus::pir::Module back;
   if (!pegasus::pg::exportModule(*mod, back, err)) return fail("export of the imported module: " + err);
-  if (pegasus::pir::encode(back) != bytes) return fail("export of the imported module differs from the input PIRB");
+  if (pegasus::pir::encode(back) != expected) return fail("export of the imported module differs from the input PIRB");
   auto reparsed = mlir::parseSourceString<mlir::ModuleOp>(text, &ctx);
   if (!reparsed || mlir::failed(mlir::verify(*reparsed))) return fail("the printed module does not parse or verify");
   if (print(*reparsed) != text) return fail("printing the reparsed module gives different text");
   pegasus::pir::Module back2;
   if (!pegasus::pg::exportModule(*reparsed, back2, err)) return fail("export of the reparsed module: " + err);
-  if (pegasus::pir::encode(back2) != bytes) return fail("export of the reparsed module differs from the input PIRB");
-  std::printf("roundtrip ok: %zu functions, %zu bytes of MLIR, PIRB identical\n", pm.funcs.size(), text.size());
+  if (pegasus::pir::encode(back2) != expected) return fail("export of the reparsed module differs from the input PIRB");
+  std::printf("roundtrip ok: %zu functions, %zu bytes of MLIR, PIRB identical (unverified)\n", pm.funcs.size(),
+              text.size());
   return 0;
 }

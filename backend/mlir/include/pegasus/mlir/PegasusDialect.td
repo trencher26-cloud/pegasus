@@ -31,7 +31,10 @@ class Pg_Type<string name, string typeMnemonic> : TypeDef<Pg_Dialect, name> {
 def Pg_IntType : Pg_Type<"Int", "int"> {
   let parameters = (ins "unsigned":$kind);
   let hasCustomAssemblyFormat = 1;
+  let genVerifyDecl = 1;
   let extraClassDeclaration = [{
+    static bool isValidKind(unsigned kind) { return kind < 12; }
+    // 0 for an invalid kind (which getChecked and every verifier refuse).
     unsigned getBits() const;
     bool isSigned() const;
     ::llvm::StringRef getKindName() const;
@@ -41,6 +44,10 @@ def Pg_IntType : Pg_Type<"Int", "int"> {
 def Pg_FloatType : Pg_Type<"Float", "float"> {
   let parameters = (ins "unsigned":$kind);
   let hasCustomAssemblyFormat = 1;
+  let genVerifyDecl = 1;
+  let extraClassDeclaration = [{
+    static bool isValidKind(unsigned kind) { return kind < 4; }
+  }];
 }
 def Pg_BoolType : Pg_Type<"Bool", "bool">;
 def Pg_CharType : Pg_Type<"Char", "char">;

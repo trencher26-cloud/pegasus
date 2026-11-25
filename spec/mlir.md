@@ -14,6 +14,16 @@ The Rust frontend stays the authority on typing, ownership and borrowing;
 the dialect's verifiers check structure only, so that MLIR transformations
 cannot silently produce malformed IR. MLIR is for optimization and lowering.
 
+**Trust contract.** MLIR verification guarantees the dialect's structural
+invariants (§2), not that the module is valid PIR: a module can verify and
+still add two `bool`s, cast lossily, repeat a switch key or return a
+reference into its own slots. Only the Rust PIR verifier decides semantic
+validity. Hence `pegasus-mlir export` never marks its output verified: it
+writes PIRB with `flags = 0`, which every consumer refuses, and
+`pegasus pirb-verify in.pirb out.pirb` runs the Rust verifier and writes the
+verified file (spec/pir-bridge.md §2.3). The verifier is not reimplemented
+in C++.
+
 ## 2. Types and operations
 
 | PIR | `pg` |
@@ -58,32 +68,55 @@ in `pg.extract_index`, are `usize`.
 
 ## 3. Import and export
 
-`pegasus-mlir import file.pirb` builds the module; `export` writes PIRB
-back. Export is the exact inverse of import: the attributes `pg.v` (value
+`pegasus-mlir import file.pirb` builds the module; `export` writes
+*unverified* PIRB back (flags 0; §1), which `pegasus pirb-verify` certifies.
+Apart from the flag, export is the exact inverse of import: the attributes `pg.v` (value
 id of each result), `pg.block_params` (value ids of block parameters),
 `pg.named_slots` and `pg.pirb_minor` keep what MLIR does not number itself.
 MLIR forbids branches to the entry block, so when PIR's `bb0` has
 predecessors the importer adds an entry block (`pg.entry_trampoline`) that
 branches to it, and export drops it.
 
+Export runs the MLIR verifier first and checks every module attribute it
+reads; malformed metadata is an error, never repaired. It writes PIRB 1.0
+only: a `pg.pirb_minor` other than 0 is refused, as is any integer kind
+outside 0–11 or float kind outside 0–3 (the type verifiers refuse those
+too, and the kind accessors are safe on any value).
+
 ## 4. Tests
 
-- `tools/mlir_roundtrip.py` (ctest `mlir_roundtrip`): every corpus program
-  with a `main` goes PIRB → MLIR → verify → print → parse → verify → print
-  (identical text), and both the imported and the reparsed module export
-  byte-identical PIRB. `--mutated` does the same for a fuzzing corpus.
-  Every module in `backend/mlir/tests/invalid` must be rejected with the
-  message on its first line.
+- `tools/mlir_roundtrip.py` (ctest `mlir_roundtrip`):
+  - Every program in `tests/run` and `tests/native` must compile to PIRB;
+    a failure fails the test. In `tests/sema/accept` the only allowed
+    failure is the explicit "has no `fn main()`" outcome, and the skipped
+    files are listed by name.
+  - Each PIRB goes PIRB → MLIR → verify → print → parse → verify → print
+    (identical text), and both the imported and the reparsed module export
+    byte-identical PIRB (apart from the verified flag). Each also goes
+    through the trust chain `import` → `export` (flag byte 0) →
+    `pegasus pirb-verify`, whose output must be byte-identical to the
+    original.
+  - Every module in `backend/mlir/tests/invalid` must be rejected by
+    `pegasus-mlir verify` with the message on its first line.
+  - Every module in `backend/mlir/tests/semantic_invalid` verifies as MLIR
+    but is invalid PIR: it must export unverified, `pegasus pirb-verify`
+    must reject it with the message on its first line and write no file,
+    and `pegasus-native` must refuse the export ("not marked verified").
+  - `--mutated FILE` round-trips a NUL-separated fuzzing corpus; programs
+    the frontend rejects or that lack `main` are counted as skips, any
+    other compiler failure fails the test.
 - `backend/mlir/tests/unit.cpp` (ctest `mlir_unit`): a loop back to the
   entry block (trampoline added, and dropped on export), refusal of a
-  non-Pegasus module, and modules that verify but must not export: malformed
-  `pg.structs`, `pg.pirb_minor`, `pg.entry` or `pg.block_params`; a struct
-  type without a definition; value ids outside 32 bits or `pg.v` not an
-  `i64`; and entry blocks
-  marked as trampolines that are not exactly the importer's.
-
-Export runs the MLIR verifier first and checks every module attribute it
-reads; malformed metadata is an error, never repaired.
+  non-Pegasus module, export writing flags 0, and modules that verify but
+  must not export: malformed `pg.structs`, `pg.pirb_minor` (including the
+  unsupported minors 1 and 70000), `pg.entry` or `pg.block_params`; a
+  struct type without a definition; value ids outside 32 bits or `pg.v` not
+  an `i64`; entry blocks marked as trampolines that are not exactly the
+  importer's; and integer/float types with invalid kinds (refused by
+  `getChecked`, safe in the accessors, refused by export).
+- `compiler/pir/tests/bridge.rs`: `certify` turns an unverified file into
+  the verified original, is the identity on a verified one, refuses
+  malformed files and reserved flags, and runs the verifier.
 - The C++ PIRB writer re-encodes every module the C++ reader decodes
   byte-identically with the Rust encoder.
 

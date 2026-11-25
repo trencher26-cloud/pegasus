@@ -375,10 +375,16 @@ public:
     // Module metadata is not covered by mlir::verify: every attribute is
     // checked here and malformed metadata is an export error, never repaired.
     auto minor = need<IntegerAttr>(mod_->getAttr("pg.pirb_minor"), "module attribute pg.pirb_minor");
-    if (minor.getValue().isNegative() || minor.getValue().getActiveBits() > 16)
-      fail("pg.pirb_minor is out of range for a PIRB minor version");
+    // Only a minor version this project's readers accept (pirb.hpp).
+    if (minor.getValue().isNegative() || minor.getValue().getActiveBits() > 16 ||
+        minor.getValue().getZExtValue() > static_cast<uint64_t>(pir::kPirbMinor))
+      fail("pg.pirb_minor " + std::to_string(minor.getValue().getSExtValue()) +
+           " is not a supported PIRB minor version (this exporter writes " + std::to_string(pir::kPirbMajor) + "." +
+           std::to_string(pir::kPirbMinor) + ")");
     m.minor = static_cast<std::uint16_t>(minor.getValue().getZExtValue());
-    m.flags = 1;
+    // Never stamp the verified flag: only the Rust verifier may
+    // (`pegasus pirb-verify`, spec/pir-bridge.md §2.3).
+    m.flags = pir::kFlagUnverified;
     auto structs = need<ArrayAttr>(mod_->getAttr("pg.structs"), "module attribute pg.structs");
     auto enums = need<ArrayAttr>(mod_->getAttr("pg.enums"), "module attribute pg.enums");
     structCount_ = structs.size();
@@ -468,9 +474,11 @@ private:
   pir::TypeP type(Type t) {
     auto out = std::make_shared<pir::Type>();
     if (auto x = dyn_cast<IntType>(t)) {
+      if (!IntType::isValidKind(x.getKind())) fail("invalid integer kind " + std::to_string(x.getKind()));
       out->kind = pir::Type::Int;
       out->ity = static_cast<pir::IntTy>(x.getKind());
     } else if (auto x = dyn_cast<FloatType>(t)) {
+      if (!FloatType::isValidKind(x.getKind())) fail("invalid float kind " + std::to_string(x.getKind()));
       out->kind = pir::Type::Float;
       out->fty = static_cast<pir::FloatTy>(x.getKind());
     } else if (isa<BoolType>(t)) {

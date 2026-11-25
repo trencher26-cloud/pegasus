@@ -154,6 +154,16 @@ struct Module {
   std::vector<Func> funcs;
 };
 
+// The PIRB version this code reads and writes (spec/pir-bridge.md §2); one
+// definition for the reader and the MLIR exporter.
+constexpr int kPirbMajor = 1;
+constexpr int kPirbMinor = 0;
+// Header flags: only the Rust frontend (bridge::encode / certify) writes
+// kFlagVerified; other producers write kFlagUnverified (spec/pir-bridge.md
+// §2.3), which every consumer refuses.
+constexpr u64 kFlagUnverified = 0;
+constexpr u64 kFlagVerified = 1;
+
 struct FormatError : std::runtime_error {
   using std::runtime_error::runtime_error;
 };

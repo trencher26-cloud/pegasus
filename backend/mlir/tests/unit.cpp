@@ -1,7 +1,11 @@
 // Unit tests for the PIRB <-> MLIR bridge on hand-built modules: shapes the
 // corpus does not produce (spec/mlir.md §3).
 #include "pegasus/mlir/Bridge.h"
+#include "pegasus/mlir/PegasusDialect.h"
 #include "pirb_write.hpp"
+
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/Builders.h"
 
 #include "mlir/IR/Verifier.h"
 #include "mlir/Parser/Parser.h"
@@ -91,11 +95,15 @@ int main() {
   pir::Module back;
   std::string err;
   CHECK(pg::exportModule(*mod, back, err), "export succeeds");
-  CHECK(pir::encode(back) == bytes, "export drops the trampoline: PIRB identical");
+  CHECK(back.flags == pir::kFlagUnverified, "export never stamps the verified flag");
+  pir::Module expectedModule = m;
+  expectedModule.flags = pir::kFlagUnverified;
+  const auto expected = pir::encode(expectedModule);
+  CHECK(pir::encode(back) == expected, "export drops the trampoline: PIRB identical (unverified)");
   auto reparsed = mlir::parseSourceString<mlir::ModuleOp>(text, &ctx);
   CHECK(reparsed && mlir::succeeded(mlir::verify(*reparsed)), "printed module reparses and verifies");
   pir::Module back2;
-  CHECK(reparsed && pg::exportModule(*reparsed, back2, err) && pir::encode(back2) == bytes,
+  CHECK(reparsed && pg::exportModule(*reparsed, back2, err) && pir::encode(back2) == expected,
         "reparsed module exports identically");
 
   // Export refuses modules that are not Pegasus modules.
@@ -157,7 +165,10 @@ int main() {
     expectExport(t, "malformed module attribute pg.pirb_minor", "a non-integer pg.pirb_minor");
     t = variant({});
     t.replace(t.find("pg.pirb_minor = 0 : i64"), 23, "pg.pirb_minor = 70000 : i64");
-    expectExport(t, "out of range", "pg.pirb_minor beyond 16 bits");
+    expectExport(t, "is not a supported PIRB minor version", "pg.pirb_minor beyond 16 bits");
+    t = variant({});
+    t.replace(t.find("pg.pirb_minor = 0 : i64"), 23, "pg.pirb_minor = 1 : i64");
+    expectExport(t, "pg.pirb_minor 1 is not a supported PIRB minor version", "pg.pirb_minor 1 (no reader accepts it)");
     t = variant({});
     const std::string entryAttr = "pg.entry = @\"f0.main\"";
     t.replace(t.find(entryAttr), entryAttr.size(), "pg.entry = 5 : i64");
@@ -210,6 +221,44 @@ int main() {
   expectExport(trampVariant("    %k = \"pg.const\"() <{value = 1 : i128}> {pg.v = 9 : i64} : () -> !pg.int<i32>\n"
                             "    \"pg.br\"(%k)[^bb1] : (!pg.int<i32>) -> ()\n"),
                "not an importer entry trampoline", "a trampoline forwarding something else");
+
+  // Invalid integer and float kinds (constructible through the generated
+  // get(); review of PR #3): getChecked refuses them, the accessors stay in
+  // bounds, and export refuses a module that uses one.
+  {
+    int diags = 0;
+    auto emit = [&]() {
+      ++diags;
+      return mlir::emitError(mlir::UnknownLoc::get(&ctx));
+    };
+    ctx.getDiagEngine().registerHandler([](mlir::Diagnostic &) { return mlir::success(); });
+    CHECK(!pg::IntType::getChecked(emit, &ctx, 12u), "IntType::getChecked refuses kind 12");
+    CHECK(!pg::FloatType::getChecked(emit, &ctx, 4u), "FloatType::getChecked refuses kind 4");
+    CHECK(pg::IntType::getChecked(emit, &ctx, 11u), "IntType::getChecked accepts usize");
+    CHECK(diags == 2, "two diagnostics");
+    auto bad = pg::IntType::get(&ctx, 99u);
+    CHECK(bad.getBits() == 0 && !bad.isSigned() && bad.getKindName() == "<invalid>", "accessors stay in bounds");
+    mlir::OpBuilder b(&ctx);
+    auto loc = mlir::UnknownLoc::get(&ctx);
+    auto mod2 = mlir::ModuleOp::create(loc);
+    mod2->setAttr("pg.pirb_minor", b.getI64IntegerAttr(0));
+    mod2->setAttr("pg.structs", b.getArrayAttr({}));
+    mod2->setAttr("pg.enums", b.getArrayAttr({}));
+    b.setInsertionPointToEnd(mod2.getBody());
+    auto fn = b.create<mlir::func::FuncOp>(loc, "f0.ext", b.getFunctionType({bad}, {bad}));
+    fn.setPrivate();
+    fn->setAttr("pg.name", b.getStringAttr("ext"));
+    fn->setAttr("pg.abi", b.getStringAttr("C"));
+    pir::Module out3;
+    std::string e3;
+    CHECK(!pg::exportModule(mod2, out3, e3) && e3.find("invalid integer kind 99") != std::string::npos,
+          "export refuses an invalid integer kind");
+    auto badf = pg::FloatType::get(&ctx, 7u);
+    fn.setType(b.getFunctionType({badf}, {badf}));
+    CHECK(!pg::exportModule(mod2, out3, e3) && e3.find("invalid float kind 7") != std::string::npos,
+          "export refuses an invalid float kind");
+    mod2->erase();
+  }
 
   std::printf("mlir unit tests: %d failures\n", failures);
   return failures ? 1 : 0;
