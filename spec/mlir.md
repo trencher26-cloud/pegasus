@@ -66,8 +66,14 @@ branches to it, and export drops it.
   Every module in `backend/mlir/tests/invalid` must be rejected with the
   message on its first line.
 - `backend/mlir/tests/unit.cpp` (ctest `mlir_unit`): a loop back to the
-  entry block (trampoline added, and dropped on export), and refusal of a
-  non-Pegasus module.
+  entry block (trampoline added, and dropped on export), refusal of a
+  non-Pegasus module, and modules that verify but must not export: malformed
+  `pg.structs`, `pg.pirb_minor`, `pg.entry` or `pg.block_params`; a struct
+  type without a definition; value ids outside 32 bits; and entry blocks
+  marked as trampolines that are not exactly the importer's.
+
+Export runs the MLIR verifier first and checks every module attribute it
+reads; malformed metadata is an error, never repaired.
 - The C++ PIRB writer re-encodes every module the C++ reader decodes
   byte-identically with the Rust encoder.
 
@@ -75,5 +81,8 @@ branches to it, and export drops it.
 
 `backend/mlir` builds against the pinned package (`PEGASUS_LLVM_ROOT`,
 spec/native.md §7) with the host compiler the package was built with or
-newer, without RTTI like LLVM. CMake option `PEGASUS_BUILD_MLIR`, on by
+newer, without RTTI like LLVM. The package is a Release build: with MSVC,
+every target that links MLIR or the backend library uses the release
+runtime (`/MD`) in every configuration, so a Debug configuration (single-
+or multi-config) still links; CI builds and runs one on Windows. CMake option `PEGASUS_BUILD_MLIR`, on by
 default when `PEGASUS_LLVM_ROOT` is set (CI).

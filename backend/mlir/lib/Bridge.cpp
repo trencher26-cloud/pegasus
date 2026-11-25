@@ -17,6 +17,7 @@
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/Verifier.h"
 
 #include <map>
 
@@ -371,43 +372,66 @@ public:
 
   pir::Module run() {
     pir::Module m;
-    auto minor = mod_->getAttrOfType<IntegerAttr>("pg.pirb_minor");
-    m.minor = minor ? static_cast<std::uint16_t>(minor.getInt()) : 0;
+    // Module metadata is not covered by mlir::verify: every attribute is
+    // checked here and malformed metadata is an export error, never repaired.
+    auto minor = need<IntegerAttr>(mod_->getAttr("pg.pirb_minor"), "module attribute pg.pirb_minor");
+    if (minor.getValue().isNegative() || minor.getValue().getActiveBits() > 16)
+      fail("pg.pirb_minor is out of range for a PIRB minor version");
+    m.minor = static_cast<std::uint16_t>(minor.getValue().getZExtValue());
     m.flags = 1;
-    for (Attribute a : attr<ArrayAttr>(mod_, "pg.structs")) {
-      auto d = cast<DictionaryAttr>(a);
-      pir::StructDef s;
-      s.name = d.getAs<StringAttr>("name").str();
-      auto names = d.getAs<ArrayAttr>("field_names"), tys = d.getAs<ArrayAttr>("field_types");
-      for (size_t k = 0; k < names.size(); ++k)
-        s.fields.emplace_back(cast<StringAttr>(names[k]).str(), type(cast<TypeAttr>(tys[k]).getValue()));
-      m.structs.push_back(s);
+    auto structs = need<ArrayAttr>(mod_->getAttr("pg.structs"), "module attribute pg.structs");
+    auto enums = need<ArrayAttr>(mod_->getAttr("pg.enums"), "module attribute pg.enums");
+    structCount_ = structs.size();
+    enumCount_ = enums.size();
+    for (size_t k = 0; k < structs.size(); ++k) {
+      std::string where = "pg.structs[" + std::to_string(k) + "]";
+      auto d = need<DictionaryAttr>(structs[k], where);
+      pir::StructDef sd;
+      sd.name = need<StringAttr>(d.get("name"), where + ".name").str();
+      auto names = need<ArrayAttr>(d.get("field_names"), where + ".field_names");
+      auto tys = need<ArrayAttr>(d.get("field_types"), where + ".field_types");
+      if (names.size() != tys.size()) fail(where + ": field_names and field_types differ in length");
+      for (size_t f = 0; f < names.size(); ++f)
+        sd.fields.emplace_back(need<StringAttr>(names[f], where + ".field_names").str(),
+                               type(need<TypeAttr>(tys[f], where + ".field_types").getValue()));
+      m.structs.push_back(sd);
     }
-    for (Attribute a : attr<ArrayAttr>(mod_, "pg.enums")) {
-      auto d = cast<DictionaryAttr>(a);
-      pir::EnumDef e;
-      e.name = d.getAs<StringAttr>("name").str();
-      auto names = d.getAs<ArrayAttr>("variant_names"), tys = d.getAs<ArrayAttr>("variant_types");
-      for (size_t k = 0; k < names.size(); ++k) {
+    for (size_t k = 0; k < enums.size(); ++k) {
+      std::string where = "pg.enums[" + std::to_string(k) + "]";
+      auto d = need<DictionaryAttr>(enums[k], where);
+      pir::EnumDef ed;
+      ed.name = need<StringAttr>(d.get("name"), where + ".name").str();
+      auto names = need<ArrayAttr>(d.get("variant_names"), where + ".variant_names");
+      auto tys = need<ArrayAttr>(d.get("variant_types"), where + ".variant_types");
+      if (names.size() != tys.size()) fail(where + ": variant_names and variant_types differ in length");
+      for (size_t v = 0; v < names.size(); ++v) {
         std::vector<pir::TypeP> vt;
-        for (Attribute t : cast<ArrayAttr>(tys[k])) vt.push_back(type(cast<TypeAttr>(t).getValue()));
-        e.variants.emplace_back(cast<StringAttr>(names[k]).str(), vt);
+        for (Attribute t : need<ArrayAttr>(tys[v], where + ".variant_types"))
+          vt.push_back(type(need<TypeAttr>(t, where + ".variant_types").getValue()));
+        ed.variants.emplace_back(need<StringAttr>(names[v], where + ".variant_names").str(), vt);
       }
-      m.enums.push_back(e);
+      m.enums.push_back(ed);
     }
     std::map<std::string, pir::u32> ids;
-    for (auto fn : mod_.getOps<func::FuncOp>()) ids[fn.getSymName().str()] = static_cast<pir::u32>(ids.size());
+    for (Operation &op : *mod_.getBody()) {
+      auto fn = dyn_cast<func::FuncOp>(op);
+      if (!fn) fail(("the module contains a " + op.getName().getStringRef() + "; only func.func is exported").str());
+      ids[fn.getSymName().str()] = static_cast<pir::u32>(ids.size());
+    }
     funcIds_ = &ids;
-    if (auto e = mod_->getAttrOfType<FlatSymbolRefAttr>("pg.entry")) {
+    if (Attribute ea = mod_->getAttr("pg.entry")) {
       m.has_entry = true;
-      m.entry = funcId(e);
+      m.entry = funcId(need<FlatSymbolRefAttr>(ea, "module attribute pg.entry"));
     }
     for (auto fn : mod_.getOps<func::FuncOp>()) m.funcs.push_back(func(fn));
+    if (m.has_entry && (!m.funcs[m.entry].defined || !m.funcs[m.entry].params.empty()))
+      fail("pg.entry is not a defined function without parameters");
     return m;
   }
 
 private:
   ModuleOp mod_;
+  size_t structCount_ = 0, enumCount_ = 0;
   std::map<std::string, pir::u32> *funcIds_ = nullptr;
   std::map<Block *, pir::u32> blockIds_;
   std::map<void *, pir::u32> vids_;
@@ -417,9 +441,22 @@ private:
 
   template <class A>
   static A attr(Operation *op, StringRef name) {
-    auto a = op->getAttrOfType<A>(name);
+    Attribute a = op->getAttr(name);
     if (!a) fail(("missing attribute " + name).str());
-    return a;
+    return need<A>(a, ("attribute " + name).str());
+  }
+  // `a` as an A, or an export error naming `what`.
+  template <class A>
+  static A need(Attribute a, const std::string &what) {
+    if (!a) fail("missing " + what);
+    auto x = dyn_cast<A>(a);
+    if (!x) fail("malformed " + what);
+    return x;
+  }
+  // A PIR identifier (u32) stored in an i64 attribute.
+  static pir::u32 u32of(int64_t v, const std::string &what) {
+    if (v < 0 || v > static_cast<int64_t>(UINT32_MAX)) fail(what + " " + std::to_string(v) + " is not a 32-bit id");
+    return static_cast<pir::u32>(v);
   }
 
   pir::u32 funcId(FlatSymbolRefAttr s) {
@@ -454,9 +491,11 @@ private:
     } else if (auto x = dyn_cast<StructType>(t)) {
       out->kind = pir::Type::Struct;
       out->id = x.getId();
+      if (out->id >= structCount_) fail("!pg.struct<" + std::to_string(out->id) + "> has no definition in pg.structs");
     } else if (auto x = dyn_cast<EnumType>(t)) {
       out->kind = pir::Type::Enum;
       out->id = x.getId();
+      if (out->id >= enumCount_) fail("!pg.enum<" + std::to_string(out->id) + "> has no definition in pg.enums");
     } else if (auto x = dyn_cast<FnType>(t)) {
       out->kind = pir::Type::Fn;
       for (Type e : x.getParams()) out->elems.push_back(type(e));
@@ -501,7 +540,7 @@ private:
         if (next >= idx.size()) fail("path has more index steps than operands");
         out.push_back({true, vid(idx[next++])});
       } else {
-        out.push_back({false, static_cast<pir::u32>(s)});
+        out.push_back({false, u32of(s, "path field")});
       }
     }
     return out;
@@ -527,6 +566,7 @@ private:
     vids_.clear();
     slotIds_.clear();
     bool trampoline = fn->hasAttr("pg.entry_trampoline");
+    if (trampoline) checkTrampoline(fn, f.name);
     std::vector<Block *> blocks;
     for (Block &b : fn.getBody())
       if (!(trampoline && &b == &fn.getBody().front())) blocks.push_back(&b);
@@ -536,13 +576,13 @@ private:
     // Value ids and types.
     std::map<pir::u32, Type> types;
     auto def = [&](Value v, int64_t id) {
-      if (id < 0 || !types.emplace(static_cast<pir::u32>(id), v.getType()).second)
-        fail("@" + f.name + ": value id defined twice or negative");
-      vids_[v.getAsOpaquePointer()] = static_cast<pir::u32>(id);
+      pir::u32 vid = u32of(id, "@" + f.name + ": value id");
+      if (!types.emplace(vid, v.getType()).second) fail("@" + f.name + ": value id " + std::to_string(vid) + " defined twice");
+      vids_[v.getAsOpaquePointer()] = vid;
     };
     Block *entry = &fn.getBody().front();
     for (size_t k = 0; k < blocks.size(); ++k) {
-      auto ids = cast<DenseI64ArrayAttr>(bparams[k]).asArrayRef();
+      auto ids = need<DenseI64ArrayAttr>(bparams[k], "@" + f.name + ": pg.block_params entry").asArrayRef();
       if (ids.size() != blocks[k]->getNumArguments()) fail("@" + f.name + ": block parameter ids do not match");
       for (size_t a = 0; a < ids.size(); ++a) def(blocks[k]->getArgument(a), ids[a]);
     }
@@ -555,6 +595,7 @@ private:
           f.slot_names.push_back(s.getName() ? s.getName()->str() : std::string());
           continue;
         }
+        if (op.getNumResults() > 1) fail("@" + f.name + ": an operation with several results");
         if (op.getNumResults() == 1) def(op.getResult(0), attr<IntegerAttr>(&op, "pg.v").getInt());
       }
     if (!fn->hasAttr("pg.named_slots")) f.slot_names.clear();
@@ -565,8 +606,8 @@ private:
     }
     for (Block *b : blocks) {
       pir::Block pb;
-      auto ids = cast<DenseI64ArrayAttr>(bparams[blockIds_[b]]).asArrayRef();
-      for (int64_t id : ids) pb.params.push_back(static_cast<pir::u32>(id));
+      auto ids = cast<DenseI64ArrayAttr>(bparams[blockIds_[b]]).asArrayRef();  // checked above
+      for (int64_t id : ids) pb.params.push_back(u32of(id, "@" + f.name + ": block parameter id"));
       for (Operation &op : *b) {
         if (isa<SlotOp>(op)) continue;
         if (op.hasTrait<OpTrait::IsTerminator>()) {
@@ -578,6 +619,28 @@ private:
       f.blocks.push_back(pb);
     }
     return f;
+  }
+
+  // The entry block may be dropped only if it is exactly what the importer
+  // makes: pg.slot declarations, then one pg.br to the next block that
+  // forwards the function's arguments unchanged, in order.
+  static void checkTrampoline(func::FuncOp fn, const std::string &name) {
+    Region &body = fn.getBody();
+    if (body.getBlocks().size() < 2) fail("@" + name + ": pg.entry_trampoline without a block to branch to");
+    Block &entry = body.front();
+    Block *target = entry.getNextNode();
+    auto bad = [&](const std::string &why) { fail("@" + name + ": not an importer entry trampoline: " + why); };
+    for (Operation &op : entry) {
+      if (isa<SlotOp>(op)) continue;
+      auto br = dyn_cast<BrOp>(op);
+      if (!br) bad("contains " + op.getName().getStringRef().str());
+      if (br.getDest() != target) bad("does not branch to the next block");
+      if (br.getArgs().size() != entry.getNumArguments()) bad("does not forward exactly the function's arguments");
+      for (unsigned k = 0; k < entry.getNumArguments(); ++k)
+        if (br.getArgs()[k] != entry.getArgument(k)) bad("does not forward the function's arguments in order");
+      return;
+    }
+    bad("has no branch");
   }
 
   template <size_t N>
@@ -611,7 +674,9 @@ private:
         i.c.b = cast<BoolAttr>(a).getValue();
       } else if (isa<CharType>(t)) {
         i.c.kind = pir::Const::Char;
-        i.c.ch = static_cast<pir::u32>(cast<IntegerAttr>(a).getValue().getZExtValue());
+        uint64_t ch = cast<IntegerAttr>(a).getValue().getZExtValue();
+        if (ch > 0x10ffff || (ch >= 0xd800 && ch <= 0xdfff)) fail("char constant is not a Unicode scalar value");
+        i.c.ch = static_cast<pir::u32>(ch);
       } else {
         i.c.kind = pir::Const::Str;
         i.c.s = cast<StringAttr>(a).str();
@@ -647,7 +712,7 @@ private:
     } else if (auto o = dyn_cast<MoveOp>(op)) {
       i.op = Op::Move;
       i.a = slot(o.getSlot());
-      for (int64_t s : o.getPath()) i.args.push_back(static_cast<pir::u32>(s));
+      for (int64_t s : o.getPath()) i.args.push_back(u32of(s, "move path field"));
     } else if (auto o = dyn_cast<DropOp>(op)) {
       i.op = Op::Drop;
       i.a = slot(o.getSlot());
@@ -678,12 +743,12 @@ private:
       i.args = vids(o.getElems());
     } else if (auto o = dyn_cast<StructOp>(op)) {
       i.op = Op::Struct;
-      i.a = static_cast<pir::u32>(o.getId());
+      i.a = u32of(o.getId(), "struct id");
       i.args = vids(o.getFields());
     } else if (auto o = dyn_cast<VariantOp>(op)) {
       i.op = Op::Variant;
-      i.a = static_cast<pir::u32>(o.getId());
-      i.b = static_cast<pir::u32>(o.getVariant());
+      i.a = u32of(o.getId(), "enum id");
+      i.b = u32of(o.getVariant(), "variant index");
       i.args = vids(o.getFields());
     } else if (auto o = dyn_cast<RepeatOp>(op)) {
       i.op = Op::Repeat;
@@ -692,7 +757,7 @@ private:
     } else if (auto o = dyn_cast<ExtractOp>(op)) {
       i.op = Op::Extract;
       i.a = vid(o.getAggregate());
-      i.idx = static_cast<pir::u32>(o.getIndex());
+      i.idx = u32of(o.getIndex(), "field index");
     } else if (auto o = dyn_cast<ExtractIndexOp>(op)) {
       i.op = Op::ExtractIndex;
       i.a = vid(o.getArray());
@@ -703,8 +768,8 @@ private:
     } else if (auto o = dyn_cast<VariantFieldOp>(op)) {
       i.op = Op::VariantField;
       i.a = vid(o.getValue());
-      i.b = static_cast<pir::u32>(o.getVariant());
-      i.idx = static_cast<pir::u32>(o.getIndex());
+      i.b = u32of(o.getVariant(), "variant index");
+      i.idx = u32of(o.getIndex(), "field index");
     } else if (auto o = dyn_cast<CallOp>(op)) {
       i.op = Op::Call;
       i.a = funcId(o.getCalleeAttr());
@@ -760,6 +825,12 @@ private:
 OwningOpRef<ModuleOp> importModule(MLIRContext &ctx, const pir::Module &m) { return Importer(ctx, m).run(); }
 
 bool exportModule(ModuleOp mod, pir::Module &out, std::string &error) {
+  // Operation-level structure (types of operands, attribute kinds, block
+  // arguments) is the verifier's; the exporter relies on it.
+  if (failed(verify(mod))) {
+    error = "the module does not verify";
+    return false;
+  }
   try {
     out = Exporter(mod).run();
     return true;

@@ -29,3 +29,29 @@ frontend, PIR, PIRB, the direct LLVM emitter or the runtime.
 | Invalid modules | 7/7 rejected with the expected message |
 
 Windows: first MLIR build with MSVC in this pull request's CI.
+
+## Review of PR #3 (four findings, all fixed)
+
+1. **Malformed module metadata crashed the exporter.** Export now runs the
+   MLIR verifier first, then checks every custom attribute it reads
+   (`pg.pirb_minor` present and within 16 bits, `pg.entry` a symbol of a
+   defined parameterless function, `pg.structs`/`pg.enums` entries and their
+   arrays, `pg.block_params` entries, struct/enum ids in types, `char`
+   scalars, nothing but `func.func` in the module) and reports an error
+   instead of repairing or crashing. Pre-fix: segmentation fault.
+2. **Value ids silently narrowed.** Every id stored in an `i64` attribute
+   (value, block-parameter, struct, enum, variant, field, path) must fit in
+   32 bits. Pre-fix: `pg.v = 4294967296` exported as value 0.
+3. **The entry trampoline was trusted.** It is dropped only if it holds
+   `pg.slot` declarations and one `pg.br` to the next block forwarding the
+   function's arguments in order. Pre-fix: a `pg.const` in it was silently
+   dropped, producing PIRB the reader rejects.
+4. **MSVC multi-config Debug.** The guard is replaced by enforcement: with
+   MSVC, every target linking MLIR or `pegasus_backend` uses the release
+   runtime `/MD` in every configuration. Windows CI now builds and runs
+   `pegasus-mlir-unit`, `abi_test` and `pegasus-native` in the Debug
+   configuration of a Ninja Multi-Config build.
+
+Tests: 16 new negative cases in `mlir_unit` (each module parses and
+verifies; export must fail with a named reason), checked against the pre-fix
+exporter, which crashes or silently mis-exports them.
