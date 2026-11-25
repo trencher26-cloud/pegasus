@@ -1,4 +1,78 @@
 {
   "format": 1,
-  "packages": {}
+  "packages": {
+    "linux-x86_64": {
+      "archive": "pegasus-llvm-18.1.3-c13b7485b879-linux-x86_64.tar.xz",
+      "builder": {
+        "commit": "95ba581331f031b35f01b60a3b3cf224ddc6b42f",
+        "created": "2026-11-25T14:38:41Z",
+        "host": {
+          "cmake": "cmake version 3.31.6",
+          "cxx": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+          "glibc": "glibc 2.39",
+          "machine": "x86_64",
+          "os": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "runner_image": "ubuntu24",
+          "runner_image_version": "20261116.376.1"
+        },
+        "run_attempt": "1",
+        "run_id": "45633865068"
+      },
+      "clang_sha256": "d467e3c450e7cd39ae92e08bd30f7e036e924372bb76b976f57751d8aca5c6d6",
+      "commit": "c13b7485b87909fcf739f62cfa382b55407433c0",
+      "parts": [
+        {
+          "name": "pegasus-llvm-18.1.3-c13b7485b879-linux-x86_64.tar.xz.000",
+          "sha256": "c1cb839296b22f515b677c95f0616b0fb45397c278505151c97ef2ccc9346f88",
+          "size": 751233592
+        }
+      ],
+      "platform": "linux-x86_64",
+      "projects": "clang;mlir",
+      "release": "llvmorg-18.1.3",
+      "repository": "trencher26-cloud/pegasus",
+      "sha256": "c1cb839296b22f515b677c95f0616b0fb45397c278505151c97ef2ccc9346f88",
+      "signer_workflow": "trencher26-cloud/pegasus/.github/workflows/toolchain.yml",
+      "size": 751233592,
+      "source": "https://github.com/llvm/llvm-project",
+      "tag": "toolchain-llvm-18.1.3-c13b7485b879",
+      "version": "18.1.3"
+    },
+    "windows-x86_64": {
+      "archive": "pegasus-llvm-18.1.3-c13b7485b879-windows-x86_64.tar.xz",
+      "builder": {
+        "commit": "95ba581331f031b35f01b60a3b3cf224ddc6b42f",
+        "created": "2026-11-25T14:32:35Z",
+        "host": {
+          "cmake": "cmake version 4.5.0",
+          "cxx": "Microsoft (R) C/C++ Optimizing Compiler Version 19.52.37029 for x64",
+          "machine": "AMD64",
+          "os": "Windows-2025Server-10.0.26100-SP0",
+          "runner_image": "win25-vs2026",
+          "runner_image_version": "20261116.315.1"
+        },
+        "run_attempt": "1",
+        "run_id": "45633865068"
+      },
+      "clang_sha256": "d195287869363ae37ee1919cd3358e9961491775381ba7764e458ac727053cda",
+      "commit": "c13b7485b87909fcf739f62cfa382b55407433c0",
+      "parts": [
+        {
+          "name": "pegasus-llvm-18.1.3-c13b7485b879-windows-x86_64.tar.xz.000",
+          "sha256": "4d0d4e7577eef48a4de94aafd84c876abe67641689a7822d3e9ba1f81f666536",
+          "size": 613881816
+        }
+      ],
+      "platform": "windows-x86_64",
+      "projects": "clang;mlir",
+      "release": "llvmorg-18.1.3",
+      "repository": "trencher26-cloud/pegasus",
+      "sha256": "4d0d4e7577eef48a4de94aafd84c876abe67641689a7822d3e9ba1f81f666536",
+      "signer_workflow": "trencher26-cloud/pegasus/.github/workflows/toolchain.yml",
+      "size": 613881816,
+      "source": "https://github.com/llvm/llvm-project",
+      "tag": "toolchain-llvm-18.1.3-c13b7485b879",
+      "version": "18.1.3"
+    }
+  }
 }
