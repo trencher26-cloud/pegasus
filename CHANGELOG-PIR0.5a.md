@@ -72,3 +72,15 @@ exporter, which crashes or silently mis-exports them.
 
 No false positives: 30 corpus and 858 fuzz-mutated modules still verify and
 round-trip byte-identically.
+
+## Third review of PR #3
+
+The dialect accepted types broader than PIR's verifier; now it matches
+`compiler/pir/src/verify.rs` exactly: array index projections in paths and
+the `pg.extract_index` index must be `usize`, and `pg.tag` yields `u32`.
+Found while checking against `verify.rs`: `pg.extract` accepted arrays,
+which PIR does not (`Extract` is a field projection of a tuple or struct;
+array elements use `extract_index`); it is now refused. 5 new invalid
+modules (20 in all), each accepted by the previous verifier. No false
+positives: 30 corpus and 858 fuzz-mutated modules still verify and
+round-trip.

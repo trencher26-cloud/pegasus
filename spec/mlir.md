@@ -39,7 +39,8 @@ terminators `pg.br`, `pg.cond_br`, `pg.switch`, `pg.ret`, `pg.trap`,
 `pg.unreachable`. A place's `path` lists field indices; `-1` marks an index
 projection whose value is the next of the op's `indices` operands.
 
-Verifiers: integer, float, bool, char and string constants carry the
+Verifiers (never broader than PIR's, `compiler/pir/src/verify.rs`):
+integer, float, bool, char and string constants carry the
 attribute their type needs; operation kinds, overflow modes and predicates
 are known; places type-check against their slot or reference, including
 struct fields from `pg.structs`; `pg.store_ref` and exclusive reborrows need
@@ -50,8 +51,9 @@ agree with their result types and the module's definitions (`pg.struct` and
 `pg.variant` ids equal the result type's and their operands match the
 fields; `pg.variant_field` variant and field indices are in range and the
 result is that field's type; `pg.tuple`, `pg.array` and `pg.repeat` match
-their element types and lengths; `pg.extract` indices are in range;
-`pg.tag` yields an integer).
+their element types and lengths; `pg.extract` takes an in-range field of a
+tuple or struct; `pg.tag` yields a `u32`); array indices, in place paths and
+in `pg.extract_index`, are `usize`.
 
 ## 3. Import and export
 

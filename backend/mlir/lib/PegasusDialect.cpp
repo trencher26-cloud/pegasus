@@ -74,6 +74,13 @@ void printTypeList(AsmPrinter &p, ArrayRef<Type> ts) {
 }
 }  // namespace
 
+// PIRB integer kinds the verifiers name (compiler/pir/src/verify.rs).
+constexpr unsigned kU32 = 8, kUsize = 11;
+static bool isIntKind(Type t, unsigned kind) {
+  auto i = dyn_cast<IntType>(t);
+  return i && i.getKind() == kind;
+}
+
 unsigned IntType::getBits() const { return kIntBits[getKind()]; }
 bool IntType::isSigned() const { return getKind() <= 5; }
 StringRef IntType::getKindName() const { return kIntNames[getKind()]; }
@@ -239,8 +246,8 @@ FailureOr<Type> placeType(Operation *op, Type base, ArrayRef<int64_t> path, Valu
         return op->emitOpError("index projection into a non-array"), failure();
       if (next >= indices.size())
         return op->emitOpError("path needs more index operands"), failure();
-      if (!isa<IntType>(indices[next++].getType()))
-        return op->emitOpError("index operand is not an integer"), failure();
+      if (!isIntKind(indices[next++].getType(), kUsize))
+        return op->emitOpError("array index must be usize"), failure();
       t = a.getElem();
     } else if (step < 0) {
       return op->emitOpError("malformed path step ") << step, failure();
@@ -401,8 +408,8 @@ LogicalResult VariantFieldOp::verify() {
   return success();
 }
 LogicalResult TagOp::verify() {
-  if (!isa<IntType>(getType()))
-    return emitOpError("a tag is an integer");
+  if (!isIntKind(getType(), kU32))
+    return emitOpError("a tag is a u32");
   return failed(enumVariants(*this, cast<EnumType>(getValue().getType()).getId())) ? failure() : success();
 }
 LogicalResult ArrayOp::verify() {
@@ -433,12 +440,10 @@ LogicalResult ExtractOp::verify() {
     if (failed(f))
       return failure();
     fs = *f;
-  } else if (auto at = dyn_cast<ArrayType>(t)) {
-    if (i < 0 || static_cast<uint64_t>(i) >= at.getLen())
-      return emitOpError("index ") << i << " out of range (array length " << at.getLen() << ")";
-    return getType() == at.getElem() ? success() : emitOpError("result type differs from the element type");
   } else {
-    return emitOpError("extract from a non-aggregate");
+    // As in PIR, extract takes a field of a tuple or struct; array elements
+    // are read with pg.extract_index.
+    return emitOpError("extract from something other than a tuple or struct");
   }
   if (i < 0 || static_cast<uint64_t>(i) >= fs.size())
     return emitOpError("index ") << i << " out of range (" << fs.size() << " fields)";
@@ -447,8 +452,8 @@ LogicalResult ExtractOp::verify() {
   return success();
 }
 LogicalResult ExtractIndexOp::verify() {
-  if (!isa<IntType>(getIndex().getType()))
-    return emitOpError("index operand is not an integer");
+  if (!isIntKind(getIndex().getType(), kUsize))
+    return emitOpError("array index must be usize");
   if (getType() != cast<ArrayType>(getArray().getType()).getElem())
     return emitOpError("result type differs from the element type");
   return success();
