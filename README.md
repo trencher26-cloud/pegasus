@@ -42,6 +42,7 @@ PEGASUS_NATIVE=build/backend/pegasus-native PEGASUS_RT=build/backend/libpegasus_
 | `backend/` | Native backend (C++17): PIRB reader, LLVM IR emitter, C ABI (`include/pegasus/backend.h`), `pegasus-native`, runtime | v0.1 subset |
 | `spec/pir-bridge.md` | PIRB 1.0 format and backend C ABI 1.0 | Frozen |
 | `spec/native.md` | Native backend: subset, semantics, runtime, differences | Implemented by `backend/` |
+| `spec/mlir.md` | Pegasus MLIR dialect (`pg`), PIRB importer/exporter | Implemented by `backend/mlir` (PIR0.5, first part) |
 | `toolchain.lock` | Pinned Rust and LLVM/MLIR (llvmorg-18.1.3, `c13b7485b879`); provisioned by `tools/provision_llvm.py`, enforced by `tools/check_toolchain.py` | |
 | `tests/native` | Native corpus: programs compared against the interpreter | |
 | `compiler/corpus` | `pgcorpus`: runs the grammar corpus against the lexer and parser; writes candidate goldens | |

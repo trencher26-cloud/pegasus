@@ -80,3 +80,11 @@ decision by the project owner.
 | TOOLCHAIN-1 | Prebuilt, hash-pinned, attested LLVM/MLIR packages (spec/native.md §7.1). Both platform packages (`linux-x86_64` `c1cb8392…`, `windows-x86_64` `4d0d4e75…`) passed the package-based CI gate on both platforms (run 45639860314: provenance, smoke test, build, ctest 16/16, lint). Builder and CI pinned to `ubuntu-24.04` (GCC 15 cannot build llvmorg-18.1.3) and `windows-2025` (Server 2025 + VS 2026, MSVC 19.52, the image the Windows package was built on). | Closed by PR #1 when `main` is green. |
 | TOOLCHAIN-3 | The two packages in `toolchain-packages.lock.json` were attested and published by the first builder, from `refs/pull/1/merge`, before publishing was restricted to `workflow_dispatch` on `main`. The lock records that ref and the fetch verifies it exactly (`--source-ref`), so they cannot be confused with anything else; new packages can only come from `main`. Republishing these from `main` means a full rebuild (main cannot use the pull request's cache), and since LLVM builds are not bit-reproducible, new hashes under a new release name. | Your decision: keep (recommended until the next pin change) or rebuild from `main`. |
 | TOOLCHAIN-2 | Local builds with a distribution clang (which reports no commit) need `-DPEGASUS_ALLOW_UNPINNED_LLVM=ON`; the configure step and the `toolchain_pinned` test then say the commit is NOT enforced. The PIR0.4.1 local verification ran this way (Ubuntu clang 18.1.3). | By design. |
+
+## MLIR (spec/mlir.md)
+
+| ID | Issue | Status |
+|---|---|---|
+| MLIR-1 | Operations print in MLIR's generic form (`"pg.bin"(...) <{...}>`); custom assembly formats would be easier to read. | Open (cosmetic). |
+| MLIR-2 | Lowering `pg` to LLVM through MLIR, and the three-way differential test (interpreter, direct emitter, MLIR path). | PIR0.5, second part. |
+| MLIR-3 | The 128-bit division helper loops 128 times on every platform (review of PR #2); benchmark it, and consider a faster path where compiler-rt is available. | Open. |

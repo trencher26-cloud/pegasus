@@ -124,6 +124,24 @@ if(PEGASUS_BUILD_BACKEND)
       ${CMAKE_BINARY_DIR}/bool_eq.pirb)
   set_tests_properties(backend_abi PROPERTIES
     DEPENDS "backend_abi_fixtures;backend_abi_fixtures_unsupported;backend_abi_fixtures_bool_eq")
+  # The MLIR dialect and PIRB importer (spec/mlir.md): on by default when
+  # PEGASUS_LLVM_ROOT is the pinned package, which provides MLIR.
+  if(PEGASUS_LLVM_ROOT)
+    set(PEGASUS_BUILD_MLIR_DEFAULT ON)
+  else()
+    set(PEGASUS_BUILD_MLIR_DEFAULT OFF)
+  endif()
+  option(PEGASUS_BUILD_MLIR "Build the Pegasus MLIR dialect and PIRB importer" ${PEGASUS_BUILD_MLIR_DEFAULT})
+  if(PEGASUS_BUILD_MLIR)
+    add_subdirectory(backend/mlir)
+    # PIRB -> MLIR -> PIRB is byte-identical and MLIR text round-trips, for
+    # every corpus program; the dialect verifier rejects malformed modules.
+    add_test(NAME mlir_roundtrip
+      COMMAND ${Python3_EXECUTABLE} tools/mlir_roundtrip.py ${PEGASUS_EXE} $<TARGET_FILE:pegasus-mlir>
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+    add_test(NAME mlir_unit COMMAND pegasus-mlir-unit)
+  endif()
+
   # Native executables vs the reference interpreter: corpus, integer
   # operators and generated programs (stdout, exit status, trap message).
   add_test(NAME native_differential

@@ -1,0 +1,8 @@
+set(LLVM_TARGET_DEFINITIONS PegasusDialect.td)
+mlir_tablegen(PegasusDialect.h.inc -gen-dialect-decls -dialect=pg)
+mlir_tablegen(PegasusDialect.cpp.inc -gen-dialect-defs -dialect=pg)
+mlir_tablegen(PegasusTypes.h.inc -gen-typedef-decls -typedefs-dialect=pg)
+mlir_tablegen(PegasusTypes.cpp.inc -gen-typedef-defs -typedefs-dialect=pg)
+mlir_tablegen(PegasusOps.h.inc -gen-op-decls)
+mlir_tablegen(PegasusOps.cpp.inc -gen-op-defs)
+add_public_tablegen_target(PegasusDialectIncGen)
