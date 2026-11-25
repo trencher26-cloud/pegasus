@@ -1,0 +1,97 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  corpus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate corpus format and error offsets
+        run: python3 tools/corpus.py check
+      - name: Check spec/pegasus.ebnf is in sync with spec/grammar.md
+        run: python3 tools/extract_ebnf.py --check spec/grammar.md
+      - name: Test golden review and freeze safeguards
+        run: python3 tools/test_goldens.py
+      - name: Check frozen source cases and goldens are unchanged
+        run: python3 tools/goldens.py check
+      - name: Check production coverage matrix against spec/pegasus.ebnf
+        run: python3 tools/corpus.py coverage
+      - name: Test the LLVM pin enforcement (fake clangs)
+        run: python3 tools/test_check_toolchain.py
+      - name: Verify corpus and golden bytes survived checkout (CR LF, lone CR, BOM, invalid UTF-8)
+        run: python3 tools/check_checkout.py
+
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned Rust toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+      - name: Install CMake and Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build cmake
+      - name: Restore the pinned LLVM (toolchain.lock)
+        id: llvm
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/llvm
+          key: llvm-${{ runner.os }}-${{ hashFiles('toolchain.lock', 'tools/provision_llvm.py', 'tools/toolchain_lock.py') }}
+      - name: Provision the pinned LLVM (verified commit; clang + MLIR; stamped)
+        if: steps.llvm.outputs.cache-hit != 'true'
+        run: python3 tools/provision_llvm.py --prefix "${{ runner.temp }}/llvm" --jobs 4
+      - name: Enforce the pin (version, commit, stamp, clang binary hash)
+        run: python3 tools/check_toolchain.py "${{ runner.temp }}/llvm/bin/clang" --require-stamp
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DPEGASUS_LLVM_ROOT="${{ runner.temp }}/llvm"
+      - name: Build
+        run: cmake --build build
+      - name: Test (unit and parser tests, grammar sync, corpus format, coverage, frozen goldens, conformance)
+        run: ctest --test-dir build --output-on-failure
+      - name: Lint
+        run: cargo clippy --all-targets --locked -- -D warnings && cargo fmt --check
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Use autocrlf=true, the Windows default that broke R6.1
+        run: git config --global core.autocrlf true
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify corpus and golden bytes survived checkout
+        run: python tools/check_checkout.py
+      - name: Install the pinned Rust toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+      - name: Install Ninja
+        run: python -m pip install ninja
+      - name: MSVC developer environment (compiler and linker for LLVM and the backend)
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Restore the pinned LLVM (toolchain.lock)
+        id: llvm
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/llvm
+          key: llvm-${{ runner.os }}-${{ hashFiles('toolchain.lock', 'tools/provision_llvm.py', 'tools/toolchain_lock.py') }}
+      - name: Provision the pinned LLVM (verified commit; clang + MLIR; stamped)
+        if: steps.llvm.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: python tools/provision_llvm.py --prefix "${{ runner.temp }}/llvm" --jobs 4
+      - name: Enforce the pin (version, commit, stamp, clang binary hash)
+        run: python tools/check_toolchain.py "${{ runner.temp }}/llvm/bin/clang.exe" --require-stamp
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DPython3_EXECUTABLE="$(python -c 'import sys; print(sys.executable)')" -DPEGASUS_LLVM_ROOT="${{ runner.temp }}/llvm"
+      - name: Build
+        run: cmake --build build
+      - name: Test (same suite as Linux)
+        run: ctest --test-dir build --output-on-failure
