@@ -9,6 +9,13 @@ find_program(CARGO cargo REQUIRED)
 find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
 
 set(PEGASUS_CARGO_PROFILE "release" CACHE STRING "Cargo profile for the Rust crates")
+# Release by default, like the cargo profile and the pinned LLVM/MLIR package:
+# on MSVC an unset build type means the debug runtime (/MDd), which cannot
+# link with the package's release libraries.
+get_property(PEGASUS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(NOT PEGASUS_MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type (Release, RelWithDebInfo, MinSizeRel, Debug)" FORCE)
+endif()
 set(CARGO_ARGS --manifest-path ${CMAKE_SOURCE_DIR}/Cargo.toml --target-dir ${CMAKE_BINARY_DIR}/cargo --locked)
 
 add_custom_target(pegasus_rust ALL

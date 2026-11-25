@@ -61,7 +61,7 @@ jobs:
       - name: Package-consumer smoke test (clang, MLIR tools, MLIR CMake package, lowering)
         run: python3 tools/package_llvm.py smoke --prefix "${{ runner.temp }}/llvm" --work "${{ runner.temp }}/smoke"
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DPEGASUS_LLVM_ROOT="${{ runner.temp }}/llvm"
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPEGASUS_LLVM_ROOT="${{ runner.temp }}/llvm"
       - name: Build
         run: cmake --build build
       - name: Test (unit and parser tests, grammar sync, corpus format, coverage, frozen goldens, conformance)
@@ -113,7 +113,7 @@ jobs:
         run: python tools/package_llvm.py smoke --prefix "${{ runner.temp }}/llvm" --work "${{ runner.temp }}/smoke"
       - name: Configure
         shell: bash
-        run: cmake -S . -B build -G Ninja -DPython3_EXECUTABLE="$(python -c 'import sys; print(sys.executable)')" -DPEGASUS_LLVM_ROOT="${{ runner.temp }}/llvm"
+        run: cmake -S . -B build -G Ninja -DPython3_EXECUTABLE="$(python -c 'import sys; print(sys.executable)')" -DCMAKE_BUILD_TYPE=Release -DPEGASUS_LLVM_ROOT="${{ runner.temp }}/llvm"
       - name: Build
         run: cmake --build build
       - name: Test (same suite as Linux)

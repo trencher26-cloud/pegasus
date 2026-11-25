@@ -2,6 +2,13 @@
 # Built against the pinned LLVM/MLIR package (PEGASUS_LLVM_ROOT) with the
 # host compiler it was built with (GCC 13 / MSVC 19.52 or newer).
 find_package(MLIR REQUIRED CONFIG PATHS ${PEGASUS_LLVM_ROOT}/lib/cmake/mlir NO_DEFAULT_PATH)
+# The package is a Release build: on MSVC its libraries use the release
+# runtime (/MD, _ITERATOR_DEBUG_LEVEL=0), and a Debug configuration (/MDd)
+# cannot link with them.
+if(MSVC AND NOT PEGASUS_MULTI_CONFIG AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+  message(FATAL_ERROR "The pinned LLVM/MLIR package is a Release build; with MSVC configure "
+    "Pegasus with -DCMAKE_BUILD_TYPE=Release or RelWithDebInfo (or -DPEGASUS_BUILD_MLIR=OFF).")
+endif()
 message(STATUS "Pegasus MLIR: MLIR ${LLVM_PACKAGE_VERSION} from ${MLIR_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}" "${LLVM_CMAKE_DIR}")
 include(TableGen)
