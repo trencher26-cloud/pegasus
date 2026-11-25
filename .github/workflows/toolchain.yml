@@ -1,0 +1,111 @@
+name: toolchain
+
+# The pinned LLVM/MLIR toolchain builder (spec/native.md §7.1). It builds the
+# source pin in toolchain.lock (tools/provision_llvm.py: verified commit,
+# clang + MLIR, stamped), runs the package-consumer smoke test on the
+# install prefix, packages it (tools/package_llvm.py), attests the package's
+# build provenance, and publishes it to the release
+# toolchain-llvm-<version>-<commit12>. Published assets are immutable: an
+# existing asset with a different digest fails the run. The SHA-256 of every
+# package is then recorded in toolchain-packages.lock.json by a reviewed
+# commit; ordinary CI downloads and verifies, and never rebuilds LLVM.
+#
+# Runs on demand: workflow_dispatch (from main), or on a pull request when
+# the label `build-toolchain` is added.
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'build-toolchain'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Pinned image: llvmorg-18.1.3 does not compile with GCC 15
+          # (ubuntu-26.04); Ubuntu 24.04's GCC 13.3 builds it.
+          - platform: linux-x86_64
+            os: ubuntu-24.04
+            cache_os: Linux-ubuntu-24.04
+          - platform: windows-x86_64
+            os: windows-latest
+            cache_os: Windows
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 360
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install CMake and Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build cmake
+      - name: Install Ninja (Windows)
+        if: runner.os == 'Windows'
+        run: python -m pip install ninja
+      - name: MSVC developer environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      # The same key as the ci workflow's source build, so a build already
+      # made there is reused rather than repeated.
+      - name: Restore the pinned LLVM build
+        id: llvm
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/llvm
+          key: llvm-${{ matrix.cache_os }}-${{ hashFiles('toolchain.lock', 'tools/provision_llvm.py', 'tools/toolchain_lock.py') }}
+      - name: Build the pinned LLVM from source (verified commit; clang + MLIR; stamped)
+        if: steps.llvm.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: python tools/provision_llvm.py --prefix "${{ runner.temp }}/llvm" --jobs 4
+      - name: Save the pinned LLVM build
+        if: steps.llvm.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/llvm
+          key: ${{ steps.llvm.outputs.cache-primary-key }}
+      - name: Package-consumer smoke test on the install prefix
+        run: python tools/package_llvm.py smoke --prefix "${{ runner.temp }}/llvm" --work "${{ runner.temp }}/smoke"
+      - name: Package
+        run: python tools/package_llvm.py pack --prefix "${{ runner.temp }}/llvm" --platform ${{ matrix.platform }} --out dist
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/*
+      - name: Keep the manifest with the run
+        uses: actions/upload-artifact@v4
+        with:
+          name: manifest-${{ matrix.platform }}
+          path: dist/*.manifest.json
+      - name: Publish to the toolchain release (immutable assets)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(python -c "import sys; sys.path.insert(0,'tools'); from toolchain_lock import llvm_pin; from toolchain_packages import release_tag; print(release_tag(llvm_pin()))")
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --prerelease --title "$tag" \
+            --notes "Pinned LLVM/MLIR toolchain packages built by .github/workflows/toolchain.yml from toolchain.lock. Verify with tools/fetch_llvm_package.py (SHA-256 from toolchain-packages.lock.json and the build-provenance attestation)." \
+            || gh release view "$tag" >/dev/null
+          existing=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$tag" --jq '.assets[] | "\(.name) \(.digest // "")"')
+          for f in dist/*; do
+            name=$(basename "$f")
+            sum="sha256:$(sha256sum "$f" | cut -d' ' -f1)"
+            have=$(printf '%s\n' "$existing" | awk -v n="$name" '$1 == n {print $2}')
+            if [ -n "$have" ]; then
+              if [ "$have" = "$sum" ]; then echo "already published, identical: $name"; continue; fi
+              # The manifest carries run metadata (run id, time); the parts it
+              # describes were just checked identical, so the first one stays.
+              case "$name" in *.manifest.json) echo "keeping the published manifest: $name"; continue;; esac
+              echo "::error::$name is already published with digest $have (this build: $sum); published assets are immutable"
+              exit 1
+            fi
+            gh release upload "$tag" "$f"
+          done

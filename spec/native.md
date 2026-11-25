@@ -107,3 +107,36 @@ corpora.
   distribution clang reports no commit and is refused unless
   `PEGASUS_ALLOW_UNPINNED_LLVM=ON`, which checks the version only and says
   that the commit is not enforced.
+
+### 7.1 Prebuilt toolchain packages
+
+Ordinary CI does not build LLVM. The toolchain builder
+(`.github/workflows/toolchain.yml`, run on demand) builds the source pin
+with `tools/provision_llvm.py` on pinned images (Linux: `ubuntu-24.04`,
+GCC 13.3; `llvmorg-18.1.3` does not compile with GCC 15), runs the
+package-consumer smoke test on the install prefix, packages it
+(`tools/package_llvm.py pack`: a deterministic `tar.xz` of the whole
+prefix, split into parts under GitHub's 2 GiB asset limit, plus a manifest
+recording the source pin, the hashes, the stamp's clang hash and the build
+host), attests the build provenance of every part, and publishes the parts
+to the release `toolchain-llvm-<version>-<commit12>`. Published parts are
+immutable: an existing asset with a different digest fails the builder.
+
+`toolchain-packages.lock.json` pins each platform's package: release,
+archive, SHA-256 and size of the archive and of every part, the source pin
+it was built from (which must equal `toolchain.lock`), and the builder
+workflow whose attestation must verify. It changes only by a reviewed
+commit (`tools/package_llvm.py record`).
+
+CI runs `tools/fetch_llvm_package.py`: download the parts, check every
+part's size and SHA-256 and the archive's SHA-256 against the lock, verify
+every part's provenance attestation (`gh attestation verify
+--signer-workflow`), unpack with Python's `data` filter (nothing outside the
+destination), and run `check_toolchain.py --require-stamp`. Then
+`tools/package_llvm.py smoke` checks that the unpacked package is complete:
+its clang compiles and runs a C program; `mlir-opt`, `mlir-translate` and
+`mlir-tblgen` run; and `tools/llvm_smoke` configures through the installed
+MLIR CMake package, builds against the installed headers and libraries, and
+lowers a func/arith module to LLVM IR. A missing package, a hash mismatch or
+a failed attestation fails CI; there is no fallback to an unverified
+toolchain.
