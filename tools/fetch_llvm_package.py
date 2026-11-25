@@ -10,7 +10,8 @@ toolchain-packages.lock.json (spec/native.md §7.1).
    must equal the lock; the reassembled archive's SHA-256 must equal the
    lock.
 3. Provenance: every part must carry a GitHub build-provenance attestation
-   from the builder workflow (`gh attestation verify --signer-workflow`).
+   from the builder workflow at the ref the lock records
+   (`gh attestation verify --signer-workflow --source-ref`).
    Mandatory; --no-attestation exists only for local use and says loudly
    that provenance was NOT verified.
 4. Unpack with Python's `data` filter (no absolute paths, no `..`, no links
@@ -62,11 +63,12 @@ def main():
     else:
         for p in paths:
             r = subprocess.run(["gh", "attestation", "verify", p, "--repo", e["repository"],
-                                "--signer-workflow", e["signer_workflow"]], capture_output=True, text=True)
+                                "--signer-workflow", e["signer_workflow"], "--source-ref", e["source_ref"]],
+                               capture_output=True, text=True)
             if r.returncode != 0:
                 sys.exit(f"FAIL: provenance attestation of {os.path.basename(p)} did not verify:\n"
                          f"{(r.stdout + r.stderr).strip()}")
-        print(f"provenance verified: {len(paths)} part(s) attested by {e['signer_workflow']}")
+        print(f"provenance verified: {len(paths)} part(s) attested by {e['signer_workflow']} at {e['source_ref']}")
     archive = os.path.join(dl, e["archive"])
     with open(archive, "wb") as out:
         for p in paths:

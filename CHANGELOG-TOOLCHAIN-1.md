@@ -75,3 +75,23 @@ cache and enforced the pin, then failed linking Rust: in Git Bash,
 default to PowerShell. The builder checks Windows out with `autocrlf=true`
 like CI, because the cache key hashes checked-out files (Windows key
 `5f00a1a6…`, Linux `3b1185fd…`).
+
+## The gate, and the cleanup before main
+
+- PR #2 (approved, merged into PR #1): the native runtime uses the static
+  CRT on Windows (clang's default `libcmt`; it was built with `/MD`, so
+  every program failed with LNK1120), and 128-bit division no longer
+  depends on compiler-rt (`__divti3` is absent from MSVC's runtime). Run
+  45639860314 then passed on both platforms: package hashes and provenance,
+  smoke test, build, ctest 16/16 (Windows `native_differential` included),
+  lint.
+- Windows runner pinned to `windows-2025` in the builder and CI (the image
+  the package was built on: Server 2025 + VS 2026, MSVC 19.52; GitHub's
+  June 2026 migration points `windows-latest`, `windows-2025` and
+  `windows-2025-vs2026` at it).
+- Builder split: `build` has a read-only token and may run on a pull
+  request; `publish` (contents write, OIDC, attestations) runs only for a
+  manual run on `main`.
+- The lock records each package's attestation ref and the fetch verifies
+  it (`--source-ref`). The existing packages carry `refs/pull/1/merge`
+  (DEFERRED TOOLCHAIN-3).

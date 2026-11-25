@@ -58,6 +58,6 @@ def package_entry(platform, path=None, lock=None):
             sys.exit(f"FAIL: package {platform} records {k} {e.get(k)!r}; toolchain.lock pins {pin[k]!r}")
     if e.get("tag") != release_tag(pin) or e.get("archive") != archive_name(pin, platform):
         sys.exit(f"FAIL: package {platform}: tag or archive name does not follow the source pin")
-    if not e.get("sha256") or not e.get("parts") or not e.get("repository") or not e.get("signer_workflow"):
-        sys.exit(f"FAIL: package {platform}: sha256, parts, repository and signer_workflow are mandatory")
+    if not all(e.get(k) for k in ("sha256", "parts", "repository", "signer_workflow", "source_ref")):
+        sys.exit(f"FAIL: package {platform}: sha256, parts, repository, signer_workflow and source_ref are mandatory")
     return pin, e

@@ -1,21 +1,26 @@
 name: toolchain
 
-# The pinned LLVM/MLIR toolchain builder (spec/native.md §7.1). It builds the
-# source pin in toolchain.lock (tools/provision_llvm.py: verified commit,
-# clang + MLIR, stamped), runs the package-consumer smoke test on the
-# install prefix, packages it (tools/package_llvm.py), attests the package's
-# build provenance, and publishes it to the release
-# toolchain-llvm-<version>-<commit12>. Published assets are immutable: an
-# existing asset with a different digest fails the run. The SHA-256 of every
-# package is then recorded in toolchain-packages.lock.json by a reviewed
-# commit; ordinary CI downloads and verifies, and never rebuilds LLVM.
+# The pinned LLVM/MLIR toolchain builder (spec/native.md §7.1).
 #
-# Runs on demand: workflow_dispatch (from main), or on a pull request when
-# the label `build-toolchain` is added.
+# build    (read-only token) builds the source pin in toolchain.lock
+#          (tools/provision_llvm.py: verified commit, clang + MLIR,
+#          stamped), runs the package-consumer smoke test on the install
+#          prefix, and packages it (tools/package_llvm.py). May run on a pull
+#          request (label `build-toolchain`) to test a toolchain change.
+# publish  (the only job with write, OIDC and attestation permissions) runs
+#          only for workflow_dispatch on main: it attests the build
+#          provenance of the packages `build` produced and publishes them to
+#          the release toolchain-llvm-<version>-<commit12>. Published assets
+#          are immutable: an existing asset with a different digest fails
+#          the run. Package hashes are then recorded in
+#          toolchain-packages.lock.json by a reviewed commit.
 on:
   workflow_dispatch:
   pull_request:
     types: [labeled]
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -24,20 +29,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Pinned image: llvmorg-18.1.3 does not compile with GCC 15
-          # (ubuntu-26.04); Ubuntu 24.04's GCC 13.3 builds it.
+          # Pinned images. llvmorg-18.1.3 does not compile with GCC 15
+          # (ubuntu-26.04); Ubuntu 24.04's GCC 13.3 builds it. windows-2025
+          # is Windows Server 2025 with Visual Studio 2026 (MSVC 19.52);
+          # consumers linking the package's C++ libraries need that toolset
+          # or newer.
           - platform: linux-x86_64
             os: ubuntu-24.04
             cache_os: Linux-ubuntu-24.04
           - platform: windows-x86_64
-            os: windows-latest
+            os: windows-2025
             cache_os: Windows
     runs-on: ${{ matrix.os }}
     timeout-minutes: 360
-    permissions:
-      contents: write
-      id-token: write
-      attestations: write
     # PowerShell by default: in Git Bash, /usr/bin/link (coreutils) shadows
     # MSVC's link.exe for every tool that searches PATH (seen in CI: rustc).
     defaults:
@@ -74,7 +78,6 @@ jobs:
           key: llvm-${{ matrix.cache_os }}-${{ hashFiles('toolchain.lock', 'tools/provision_llvm.py', 'tools/toolchain_lock.py') }}
       - name: Build the pinned LLVM from source (verified commit; clang + MLIR; stamped)
         if: steps.llvm.outputs.cache-hit != 'true'
-        shell: pwsh
         run: python tools/provision_llvm.py --prefix "${{ runner.temp }}/llvm" --jobs 4
       - name: Save the pinned LLVM build
         if: steps.llvm.outputs.cache-hit != 'true'
@@ -86,21 +89,54 @@ jobs:
         run: python tools/package_llvm.py smoke --prefix "${{ runner.temp }}/llvm" --work "${{ runner.temp }}/smoke"
       - name: Package
         run: python tools/package_llvm.py pack --prefix "${{ runner.temp }}/llvm" --platform ${{ matrix.platform }} --out dist
+      - name: Hand the package to the publish job
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.platform }}
+          path: dist/*
+          compression-level: 0
+          retention-days: 7
+
+  publish:
+    needs: build
+    # Trusted context only: a manual run on main. Pull-request runs build
+    # and test packages but never attest or publish them.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the packages built by this run
+        uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          path: dist
+          merge-multiple: true
+      - name: Check each manifest against its parts
+        run: |
+          python3 - <<'EOF'
+          import glob, hashlib, json, os, sys
+          for m in glob.glob("dist/*.manifest.json"):
+              e = json.load(open(m))
+              for p in e["parts"]:
+                  path = os.path.join("dist", p["name"])
+                  h = hashlib.sha256(open(path, "rb").read()).hexdigest()
+                  if h != p["sha256"] or os.path.getsize(path) != p["size"]:
+                      sys.exit(f"{p['name']} does not match {m}")
+              print(f"{e['platform']}: {len(e['parts'])} part(s) match the manifest")
+          EOF
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: dist/*
-      - name: Keep the manifest with the run
-        uses: actions/upload-artifact@v4
-        with:
-          name: manifest-${{ matrix.platform }}
-          path: dist/*.manifest.json
       - name: Publish to the toolchain release (immutable assets)
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag=$(python -c "import sys; sys.path.insert(0,'tools'); from toolchain_lock import llvm_pin; from toolchain_packages import release_tag; print(release_tag(llvm_pin()))")
+          tag=$(python3 -c "import sys; sys.path.insert(0,'tools'); from toolchain_lock import llvm_pin; from toolchain_packages import release_tag; print(release_tag(llvm_pin()))")
           gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --prerelease --title "$tag" \
             --notes "Pinned LLVM/MLIR toolchain packages built by .github/workflows/toolchain.yml from toolchain.lock. Verify with tools/fetch_llvm_package.py (SHA-256 from toolchain-packages.lock.json and the build-provenance attestation)." \
             || gh release view "$tag" >/dev/null

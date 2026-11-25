@@ -35,6 +35,7 @@
       "signer_workflow": "trencher26-cloud/pegasus/.github/workflows/toolchain.yml",
       "size": 751233592,
       "source": "https://github.com/llvm/llvm-project",
+      "source_ref": "refs/pull/1/merge",
       "tag": "toolchain-llvm-18.1.3-c13b7485b879",
       "version": "18.1.3"
     },
@@ -71,6 +72,7 @@
       "signer_workflow": "trencher26-cloud/pegasus/.github/workflows/toolchain.yml",
       "size": 613881816,
       "source": "https://github.com/llvm/llvm-project",
+      "source_ref": "refs/pull/1/merge",
       "tag": "toolchain-llvm-18.1.3-c13b7485b879",
       "version": "18.1.3"
     }

@@ -73,7 +73,7 @@ jobs:
   # goldens to CR LF in R6.1. .gitattributes must keep every byte-sensitive file
   # exact, and the whole suite must pass on a second OS and file system.
   windows:
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 60
     permissions:
       contents: read

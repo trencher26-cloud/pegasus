@@ -47,7 +47,7 @@ with tempfile.TemporaryDirectory() as t:
     out = os.path.join(t, "dist")
     lock = os.path.join(t, "packages.lock.json")
     env = dict(os.environ, PEGASUS_PACKAGES_LOCK=lock, PEGASUS_PACKAGE_PART_SIZE="100000",
-               GITHUB_REPOSITORY="example/pegasus")
+               GITHUB_REPOSITORY="example/pegasus", GITHUB_REF="refs/heads/main")
     run([os.path.join(HERE, "package_llvm.py"), "pack", "--prefix", prefix, "--platform", "linux-x86_64",
          "--out", out], env, True, "part(s)", "pack splits the archive into parts")
     mf = [os.path.join(out, f) for f in os.listdir(out) if f.endswith(".manifest.json")][0]

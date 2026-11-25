@@ -115,27 +115,33 @@ corpora.
 ### 7.1 Prebuilt toolchain packages
 
 Ordinary CI does not build LLVM. The toolchain builder
-(`.github/workflows/toolchain.yml`, run on demand) builds the source pin
-with `tools/provision_llvm.py` on pinned images (Linux: `ubuntu-24.04`,
-GCC 13.3; `llvmorg-18.1.3` does not compile with GCC 15), runs the
-package-consumer smoke test on the install prefix, packages it
+(`.github/workflows/toolchain.yml`) has two jobs. `build` (read-only
+token; on a pull request with the `build-toolchain` label, or on a manual
+run) builds the source pin with `tools/provision_llvm.py` on pinned images
+(Linux: `ubuntu-24.04`, GCC 13.3, since `llvmorg-18.1.3` does not compile
+with GCC 15; Windows: `windows-2025`, Server 2025 with Visual Studio 2026,
+MSVC 19.52, which a consumer linking the package's C++ libraries must
+match or exceed), runs the package-consumer smoke test on the install
+prefix, packages it
 (`tools/package_llvm.py pack`: a deterministic `tar.xz` of the whole
 prefix, split into parts under GitHub's 2 GiB asset limit, plus a manifest
 recording the source pin, the hashes, the stamp's clang hash and the build
-host), attests the build provenance of every part, and publishes the parts
-to the release `toolchain-llvm-<version>-<commit12>`. Published parts are
+host), and hands it over as a run artifact. `publish`, the only job with
+write, OIDC and attestation permissions, runs only for a manual run on
+`main`: it attests the build provenance of every part and publishes the
+parts to the release `toolchain-llvm-<version>-<commit12>`. Published parts are
 immutable: an existing asset with a different digest fails the builder.
 
 `toolchain-packages.lock.json` pins each platform's package: release,
 archive, SHA-256 and size of the archive and of every part, the source pin
 it was built from (which must equal `toolchain.lock`), and the builder
-workflow whose attestation must verify. It changes only by a reviewed
+workflow and ref whose attestation must verify. It changes only by a reviewed
 commit (`tools/package_llvm.py record`).
 
 CI runs `tools/fetch_llvm_package.py`: download the parts, check every
 part's size and SHA-256 and the archive's SHA-256 against the lock, verify
 every part's provenance attestation (`gh attestation verify
---signer-workflow`), unpack with Python's `data` filter (nothing outside the
+--signer-workflow --source-ref`), unpack with Python's `data` filter (nothing outside the
 destination), and run `check_toolchain.py --require-stamp`. Then
 `tools/package_llvm.py smoke` checks that the unpacked package is complete:
 its clang compiles and runs a C program; `mlir-opt`, `mlir-translate` and

@@ -137,6 +137,9 @@ def pack(prefix, plat, out):
         "clang_sha256": stamp.get("clang_sha256"),
         "repository": repo,
         "signer_workflow": f"{repo}/{BUILDER_WORKFLOW}" if repo else "",
+        # The ref the provenance attestation will name; the publish job only
+        # runs on refs/heads/main.
+        "source_ref": os.environ.get("GITHUB_REF", ""),
         "builder": {"run_id": os.environ.get("GITHUB_RUN_ID", ""), "run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT", ""),
                     "commit": os.environ.get("GITHUB_SHA", ""), "host": host_info(),
                     "created": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")},
@@ -157,7 +160,8 @@ def record(manifests):
             if e.get(k) != pin[k]:
                 sys.exit(f"FAIL: {m}: {k} {e.get(k)!r} does not match toolchain.lock")
         keep = {k: e[k] for k in ("platform", "source", "release", "commit", "version", "projects", "tag", "archive",
-                                  "sha256", "size", "parts", "clang_sha256", "repository", "signer_workflow")}
+                                  "sha256", "size", "parts", "clang_sha256", "repository", "signer_workflow",
+                                  "source_ref")}
         keep["builder"] = {k: e["builder"][k] for k in ("run_id", "run_attempt", "commit", "host", "created")}
         data.setdefault("packages", {})[e["platform"]] = keep
     data["format"] = FORMAT
