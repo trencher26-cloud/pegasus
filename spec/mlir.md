@@ -49,7 +49,11 @@ terminators `pg.br`, `pg.cond_br`, `pg.switch`, `pg.ret`, `pg.trap`,
 `pg.unreachable`. A place's `path` lists field indices; `-1` marks an index
 projection whose value is the next of the op's `indices` operands.
 
-Verifiers (never broader than PIR's, `compiler/pir/src/verify.rs`):
+**Structural verifier checks.** These keep MLIR transformations from
+producing malformed IR; they are not PIR's semantic rules and make no claim
+of parity with `compiler/pir/src/verify.rs` (§1: which operations are
+defined on which types, cast losslessness, switch-key uniqueness, ownership
+and borrowing are checked only by the Rust verifier). The dialect checks:
 integer, float, bool, char and string constants carry the
 attribute their type needs, an integer constant has no bits above its
 type's width, and a char constant is a Unicode scalar value; operation kinds, overflow modes and predicates
@@ -112,7 +116,9 @@ too, and the kind accessors are safe on any value).
   unsupported minors 1 and 70000), `pg.entry` or `pg.block_params`; a
   struct type without a definition; value ids outside 32 bits or `pg.v` not
   an `i64`; entry blocks marked as trampolines that are not exactly the
-  importer's; and integer/float types with invalid kinds (refused by
+  importer's; the C++ writer refusing to write a verified file (any
+  nonzero flags) or an unsupported minor, and the C++ reader refusing what
+  it does write; and integer/float types with invalid kinds (refused by
   `getChecked`, safe in the accessors, refused by export).
 - `compiler/pir/tests/bridge.rs`: `certify` turns an unverified file into
   the verified original, is the identity on a verified one, refuses

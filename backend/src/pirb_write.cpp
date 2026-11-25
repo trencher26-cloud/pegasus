@@ -1,6 +1,9 @@
 // PIRB writer; byte layout identical to compiler/pir/src/bridge.rs::encode.
 #include "pirb_write.hpp"
 
+#include <string>
+#include <utility>
+
 namespace pegasus::pir {
 namespace {
 
@@ -124,12 +127,23 @@ struct W {
 
 }  // namespace
 
-std::vector<std::uint8_t> encode(const Module &m) {
+bool encodeUnverified(const Module &m, std::vector<std::uint8_t> &out, std::string &error) {
+  out.clear();
+  if (m.flags != kFlagUnverified) {
+    error = "the C++ PIRB writer only writes unverified files (flags 0, got " + std::to_string(m.flags) +
+            "); only the Rust PIR verifier (`pegasus pirb-verify`) may mark PIRB verified";
+    return false;
+  }
+  if (m.minor > kPirbMinor) {
+    error = "PIRB minor version " + std::to_string(m.minor) + " is not supported (this writer writes " +
+            std::to_string(kPirbMajor) + "." + std::to_string(kPirbMinor) + ")";
+    return false;
+  }
   W w;
   for (char c : std::string("PIRB")) w.byte(static_cast<unsigned char>(c));
-  w.byte(1); w.byte(0);                       // major 1
+  w.byte(kPirbMajor & 0xff); w.byte(kPirbMajor >> 8);
   w.byte(m.minor & 0xff); w.byte(m.minor >> 8);
-  w.u(m.flags);
+  w.u(kFlagUnverified);
   w.u(m.has_entry ? u64(m.entry) + 1 : 0);
   w.u(m.structs.size());
   for (auto &s : m.structs) {
@@ -174,7 +188,8 @@ std::vector<std::uint8_t> encode(const Module &m) {
   }
   u32 c = crc32(w.b.data(), w.b.size());
   for (int k = 0; k < 4; ++k) w.byte((c >> (8 * k)) & 0xff);
-  return w.b;
+  out = std::move(w.b);
+  return true;
 }
 
 }  // namespace pegasus::pir

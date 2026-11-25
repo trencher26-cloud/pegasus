@@ -109,7 +109,9 @@ in its type's width).
 A file with `flags = 0` is *unverified*: well formed, but no claim that the
 module passed the PIR verifier. Tools that produce PIRB from something
 other than the Rust frontend (`pegasus-mlir export`, spec/mlir.md) write
-flags 0. An unverified file is valid only as input to
+flags 0. The C++ writer enforces this for every caller:
+`pir::encodeUnverified` (`backend/src/pirb_write.hpp`) refuses a module
+whose flags are not 0, and has no way to write the verified bit. An unverified file is valid only as input to
 `pegasus pirb-verify in.pirb out.pirb`; every consumer (the C++ reader, the
 Rust `bridge::decode`) refuses it as "not marked verified".
 

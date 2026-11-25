@@ -141,3 +141,27 @@ verify, which is what the safe accessors and export checks are for. The
 unchecked-construction checks now run under NDEBUG only; `getChecked`
 checks run in every configuration. Reproduced locally with a Debug build
 (old test asserts, new one passes).
+
+## Final review of PR #3 (bb61608)
+
+- **The C++ writer could still certify.** `pir::encode` serialized
+  `Module.flags` verbatim, so a C++ caller other than `pegasus-mlir export`
+  could set `kFlagVerified` and produce a file every consumer trusts without
+  `pegasus pirb-verify`. It is replaced by `pir::encodeUnverified`, which
+  refuses any module whose flags are not 0 (and any minor version above
+  1.0) and always writes flags 0; there is no C++ API left that writes the
+  verified bit. Unit tests: flags 1, 2, 3 and all-ones are refused with an
+  empty output; minor 1 is refused; a successful encode has flag byte 0 and
+  a 1.0 header, and the C++ reader refuses it ("not marked verified"). The
+  unit fixture no longer builds a "verified" module in C++: it imports the
+  hand-built module directly.
+- **Spec contradiction.** spec/mlir.md §2 called the dialect verifiers
+  "never broader than PIR's"; the heading is now "Structural verifier
+  checks", with no parity claim, and names what only the Rust verifier
+  checks. (The "matches verify.rs exactly" wording in the third-review entry
+  above is superseded by this.)
+- The writer uses `kPirbMajor` for the header, completing the shared
+  version constants.
+
+Verified locally: ctest 18/18; mlir unit tests in Release and in a Debug
+(assertions) build.

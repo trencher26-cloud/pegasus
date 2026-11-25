@@ -13,6 +13,8 @@
 
 #include <cstdio>
 #include <map>
+#include <string>
+#include <vector>
 
 using namespace pegasus;
 
@@ -40,8 +42,7 @@ static pir::TypeP boolTy() {
 // fn count(n: u32) -> u32: bb0(n) loops to itself until n == 0. bb0 has a
 // predecessor, so the importer must add a separate entry block.
 static pir::Module loopToEntry() {
-  pir::Module m;
-  m.flags = 1;
+  pir::Module m;  // flags = kFlagUnverified: hand-built, never verified
   pir::Func f;
   f.name = "count";
   f.params = {intTy(pir::IntTy::U32)};
@@ -82,10 +83,48 @@ static pir::Module loopToEntry() {
 int main() {
   mlir::MLIRContext ctx;
   pg::registerDialects(ctx);
+  // Encodes with the C++ writer, which only writes unverified PIRB.
+  auto encode = [](const pir::Module &m) {
+    std::vector<std::uint8_t> b;
+    std::string e;
+    if (!pir::encodeUnverified(m, b, e)) {
+      std::fprintf(stderr, "FAILED: encodeUnverified: %s\n", e.c_str());
+      ++failures;
+    }
+    return b;
+  };
+
+  // The C++ writer cannot certify its own output (review of PR #3): it
+  // refuses a module claiming to be verified (or with reserved bits, or a
+  // minor version it does not write), and what it does write is refused by
+  // the C++ reader until `pegasus pirb-verify` certifies it.
   pir::Module m = loopToEntry();
-  auto bytes = pir::encode(m);
-  auto decoded = pir::decode(bytes.data(), bytes.size());
-  auto mod = pg::importModule(ctx, decoded);
+  {
+    std::vector<std::uint8_t> b{1, 2, 3};
+    std::string e;
+    for (pir::u64 flags : {pir::kFlagVerified, pir::u64{2}, pir::u64{3}, ~pir::u64{0}}) {
+      pir::Module claimed = m;
+      claimed.flags = flags;
+      CHECK(!pir::encodeUnverified(claimed, b, e) && b.empty() &&
+                e.find("only writes unverified files") != std::string::npos,
+            "the writer refuses a module whose flags are not 0");
+    }
+    pir::Module future = m;
+    future.minor = 1;
+    CHECK(!pir::encodeUnverified(future, b, e) && e.find("minor version 1 is not supported") != std::string::npos,
+          "the writer refuses a minor version it does not write");
+    CHECK(pir::encodeUnverified(m, b, e) && b.size() > 9 && b[8] == 0, "an unverified module encodes with flags 0");
+    CHECK(b[4] == pir::kPirbMajor && b[5] == 0 && b[6] == pir::kPirbMinor && b[7] == 0, "header is 1.0");
+    bool refused = false;
+    try {
+      pir::decode(b.data(), b.size());
+    } catch (const std::exception &x) {
+      refused = std::string(x.what()).find("not marked verified") != std::string::npos;
+    }
+    CHECK(refused, "the C++ reader refuses the writer's output");
+  }
+
+  auto mod = pg::importModule(ctx, m);
   CHECK(mlir::succeeded(mlir::verify(*mod)), "loop to the entry block imports and verifies");
   std::string text;
   llvm::raw_string_ostream os(text);
@@ -97,13 +136,12 @@ int main() {
   CHECK(pg::exportModule(*mod, back, err), "export succeeds");
   CHECK(back.flags == pir::kFlagUnverified, "export never stamps the verified flag");
   pir::Module expectedModule = m;
-  expectedModule.flags = pir::kFlagUnverified;
-  const auto expected = pir::encode(expectedModule);
-  CHECK(pir::encode(back) == expected, "export drops the trampoline: PIRB identical (unverified)");
+  const auto expected = encode(expectedModule);
+  CHECK(encode(back) == expected, "export drops the trampoline: PIRB identical (unverified)");
   auto reparsed = mlir::parseSourceString<mlir::ModuleOp>(text, &ctx);
   CHECK(reparsed && mlir::succeeded(mlir::verify(*reparsed)), "printed module reparses and verifies");
   pir::Module back2;
-  CHECK(reparsed && pg::exportModule(*reparsed, back2, err) && pir::encode(back2) == expected,
+  CHECK(reparsed && pg::exportModule(*reparsed, back2, err) && encode(back2) == expected,
         "reparsed module exports identically");
 
   // Export refuses modules that are not Pegasus modules.
