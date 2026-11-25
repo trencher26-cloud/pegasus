@@ -5,6 +5,7 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 #include "pegasus/mlir/PegasusDialect.cpp.inc"
@@ -293,14 +294,28 @@ LogicalResult ConstOp::verify() {
     auto ia = dyn_cast<IntegerAttr>(v);
     return ia && ia.getType().isInteger(w);
   };
-  if (isa<IntType>(t) ? intOfWidth(128)
-      : isa<FloatType>(t) ? intOfWidth(64)
-      : isa<BoolType>(t)  ? isa<BoolAttr>(v)
-      : isa<CharType>(t)  ? intOfWidth(32)
-      : isa<StrType>(t)   ? isa<StringAttr>(v)
-                          : false)
-    return success();
-  return emitOpError("constant attribute does not match the result type ") << t;
+  if (!(isa<IntType>(t) ? intOfWidth(128)
+        : isa<FloatType>(t) ? intOfWidth(64)
+        : isa<BoolType>(t)  ? isa<BoolAttr>(v)
+        : isa<CharType>(t)  ? intOfWidth(32)
+        : isa<StrType>(t)   ? isa<StringAttr>(v)
+                            : false))
+    return emitOpError("constant attribute does not match the result type ") << t;
+  // As PIR's verifier: an integer constant is its type's bit pattern, with no
+  // bits above the type's width (`v & !mask(t) == 0`), and a char is a
+  // Unicode scalar value.
+  if (auto it = dyn_cast<IntType>(t)) {
+    const APInt &bits = cast<IntegerAttr>(v).getValue();
+    if (bits.getActiveBits() > it.getBits())
+      return emitOpError("integer constant 0x") << llvm::toString(bits, 16, /*Signed=*/false)
+                                                << " has bits outside `" << it.getKindName() << "`";
+  }
+  if (isa<CharType>(t)) {
+    uint64_t c = cast<IntegerAttr>(v).getValue().getZExtValue();
+    if (c > 0x10ffff || (c >= 0xd800 && c <= 0xdfff))
+      return emitOpError("char constant is not a Unicode scalar value");
+  }
+  return success();
 }
 
 LogicalResult BinOp::verify() {

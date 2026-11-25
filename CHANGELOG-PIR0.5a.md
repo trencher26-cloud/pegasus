@@ -84,3 +84,13 @@ array elements use `extract_index`); it is now refused. 5 new invalid
 modules (20 in all), each accepted by the previous verifier. No false
 positives: 30 corpus and 858 fuzz-mutated modules still verify and
 round-trip.
+
+## Fourth review of PR #3
+
+`pg.const` accepted integer values outside their type (`256 : i128` as
+`!pg.int<i8>`). It now applies PIR's rule `v & !mask(t) == 0`: the constant
+is the type's bit pattern, so `-1` for a `u32` is `0xffffffff`, never 128
+one bits. A `char` constant must also be a Unicode scalar value (a Rust
+`char` always is). 3 new invalid modules (23 in all), each accepted by the
+previous verifier. No false positives: 30 corpus and 858 fuzz-mutated
+modules still verify and round-trip; ctest 18/18.

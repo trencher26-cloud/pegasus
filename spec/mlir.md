@@ -41,7 +41,8 @@ projection whose value is the next of the op's `indices` operands.
 
 Verifiers (never broader than PIR's, `compiler/pir/src/verify.rs`):
 integer, float, bool, char and string constants carry the
-attribute their type needs; operation kinds, overflow modes and predicates
+attribute their type needs, an integer constant has no bits above its
+type's width, and a char constant is a Unicode scalar value; operation kinds, overflow modes and predicates
 are known; places type-check against their slot or reference, including
 struct fields from `pg.structs`; `pg.store_ref` and exclusive reborrows need
 an exclusive reference; borrow results have the borrow's exclusivity; switch
