@@ -365,8 +365,17 @@ private:
       emit(nz + " = icmp ne " + T + " " + b + ", 0");
       check(nz, trap_call(i.bop == BinOp::Div ? "attempt to divide by zero"
                                                : "attempt to calculate the remainder with a divisor of zero"));
+      // 128-bit division goes through our own IR helper: LLVM lowers
+      // `udiv/sdiv/urem/srem i128` to compiler-rt calls (__divti3 ...),
+      // which MSVC's runtime does not provide (spec/native.md §3).
+      auto div = [&](const char *op, const std::string &x, const std::string &y) {
+        if (w == 128)
+          emit(r + " = call i128 " + div128_helper(op) + "(i128 " + x + ", i128 " + y + ")");
+        else
+          emit(r + " = " + op + " " + T + " " + x + ", " + y);
+      };
       if (!sg) {
-        emit(r + " = " + (i.bop == BinOp::Div ? "udiv " : "urem ") + T + " " + a + ", " + b);
+        div(i.bop == BinOp::Div ? "udiv" : "urem", a, b);
         return;
       }
       auto m1 = fresh();
@@ -378,12 +387,12 @@ private:
         emit(bad + " = and i1 " + isMin + ", " + m1);
         emit(ok + " = xor i1 " + bad + ", true");
         check(ok, trap_call(ovmsg));
-        emit(r + " = sdiv " + T + " " + a + ", " + b);
+        div("sdiv", a, b);
       } else {
         // MIN % -1 = 0 (Phase 0 §7); x % 1 = 0 as well, and srem by -1 is UB.
         auto sb = fresh();
         emit(sb + " = select i1 " + m1 + ", " + T + " 1, " + T + " " + b);
-        emit(r + " = srem " + T + " " + a + ", " + sb);
+        div("srem", a, sb);
       }
       return;
     }
@@ -425,6 +434,70 @@ private:
   // unless the base is an unsigned 0 or 1; otherwise the exact power must
   // fit the type. |x| >= 2 overflows within the type's bit width, so the
   // multiplication loop is bounded; 0, 1 and -1 are answered directly.
+  // 128-bit `udiv`, `urem`, `sdiv`, `srem` (truncating, as LLVM's), in IR
+  // that LLVM expands inline: restoring shift-subtract division over 128
+  // bits. Callers have already excluded a zero divisor and, for `sdiv`,
+  // MIN / -1; `srem` by -1 never reaches here (the caller divides by 1).
+  std::string div128_helper(const char *op) {
+    std::string nm = std::string("@pg.") + op + "128";
+    if (!helper_names_.insert(nm).second) return nm;
+    if (helper_names_.insert("@pg.udivmod128").second) {
+      helpers_ +=
+          "define internal { i128, i128 } @pg.udivmod128(i128 %n, i128 %d) {\n"
+          "entry:\n"
+          "  br label %loop\n"
+          "loop:\n"
+          "  %i = phi i32 [ 127, %entry ], [ %i.next, %loop ]\n"
+          "  %q = phi i128 [ 0, %entry ], [ %q.next, %loop ]\n"
+          "  %r = phi i128 [ 0, %entry ], [ %r.next, %loop ]\n"
+          "  %sh = zext i32 %i to i128\n"
+          "  %bit = lshr i128 %n, %sh\n"
+          "  %b1 = and i128 %bit, 1\n"
+          // 2r + bit can exceed 128 bits when d > 2^127: the carry out of the
+          // shift then means the true value is >= 2^128 > d.
+          "  %carry = icmp slt i128 %r, 0\n"
+          "  %r2 = shl i128 %r, 1\n"
+          "  %r3 = or i128 %r2, %b1\n"
+          "  %ge0 = icmp uge i128 %r3, %d\n"
+          "  %ge = or i1 %carry, %ge0\n"
+          "  %r4 = sub i128 %r3, %d\n"
+          "  %r.next = select i1 %ge, i128 %r4, i128 %r3\n"
+          "  %qbit = shl i128 1, %sh\n"
+          "  %q2 = or i128 %q, %qbit\n"
+          "  %q.next = select i1 %ge, i128 %q2, i128 %q\n"
+          "  %i.next = sub i32 %i, 1\n"
+          "  %done = icmp eq i32 %i, 0\n"
+          "  br i1 %done, label %out, label %loop\n"
+          "out:\n"
+          "  %res0 = insertvalue { i128, i128 } poison, i128 %q.next, 0\n"
+          "  %res = insertvalue { i128, i128 } %res0, i128 %r.next, 1\n"
+          "  ret { i128, i128 } %res\n"
+          "}\n\n";
+    }
+    std::string o = "define internal i128 " + nm + "(i128 %a, i128 %b) {\nentry:\n";
+    bool sgn = op[0] == 's', quot = std::string(op).find("div") != std::string::npos;
+    if (sgn) {
+      // |x| as unsigned (|MIN| = 2^127 is exact); quotient negative when the
+      // signs differ, remainder takes the dividend's sign.
+      o += "  %an = icmp slt i128 %a, 0\n  %bn = icmp slt i128 %b, 0\n"
+           "  %na = sub i128 0, %a\n  %nb = sub i128 0, %b\n"
+           "  %ua = select i1 %an, i128 %na, i128 %a\n  %ub = select i1 %bn, i128 %nb, i128 %b\n"
+           "  %qr = call { i128, i128 } @pg.udivmod128(i128 %ua, i128 %ub)\n";
+      if (quot)
+        o += "  %uq = extractvalue { i128, i128 } %qr, 0\n  %neg = xor i1 %an, %bn\n"
+             "  %nq = sub i128 0, %uq\n  %v = select i1 %neg, i128 %nq, i128 %uq\n";
+      else
+        o += "  %ur = extractvalue { i128, i128 } %qr, 1\n"
+             "  %nr = sub i128 0, %ur\n  %v = select i1 %an, i128 %nr, i128 %ur\n";
+    } else {
+      o += "  %qr = call { i128, i128 } @pg.udivmod128(i128 %a, i128 %b)\n";
+      o += std::string("  %v = extractvalue { i128, i128 } %qr, ") + (quot ? "0" : "1") + "\n";
+    }
+    o += "  ret i128 %v\n}\n\n";
+    helpers_ += o;
+    return nm;
+  }
+
   std::string pow_helper(IntTy t, IntTy e) {
     std::string nm = std::string("@\"pg.pow.") + name(t) + "." + name(e) + "\"";
     if (!helper_names_.insert(nm).second) return nm;
