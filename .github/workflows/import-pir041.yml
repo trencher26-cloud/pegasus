@@ -65,7 +65,10 @@ jobs:
               raise SystemExit("Expected top-level pegasus/ directory")
 
           def ignore(directory, names):
-              return {n for n in names if n in {"__pycache__"} or n.endswith((".pyc", ".pyo"))}
+              ignored = {n for n in names if n == "__pycache__" or n.endswith((".pyc", ".pyo"))}
+              if Path(directory).as_posix().endswith("/.github/workflows"):
+                  ignored.add("corpus.yml")
+              return ignored
 
           shutil.copytree(source, Path("."), dirs_exist_ok=True, ignore=ignore)
           archive.unlink()
@@ -73,10 +76,9 @@ jobs:
           print(f"Imported source tree; archive SHA-256 verified: {digest}")
           PY
 
-      - name: Remove one-time importer and commit actual source tree
+      - name: Commit actual source tree (preserve the active importer workflow)
         id: commit
         run: |
-          rm -f .github/workflows/import-pir041.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
