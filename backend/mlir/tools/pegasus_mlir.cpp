@@ -11,7 +11,9 @@
 //       byte-identical to the input PIRB apart from the verified flag)
 //   pegasus-mlir lower <in.pirb> <out.ll>      the MLIR native path
 //       (spec/mlir.md §5): import verified PIRB, lower pg to the LLVM
-//       dialect, translate to LLVM IR; a drop-in for `pegasus-native`
+//       dialect, translate to LLVM IR; a drop-in for `pegasus-native`.
+//       With PEGASUS_MLIR_DUMP set, the lowered LLVM-dialect module is
+//       printed to standard error before translation (a debugging aid).
 //
 // Exit status: 0 ok, 1 verification or round-trip failure (for `lower`:
 // outside the native subset, "not supported by the native backend yet"),
