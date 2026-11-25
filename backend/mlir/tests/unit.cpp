@@ -222,9 +222,11 @@ int main() {
                             "    \"pg.br\"(%k)[^bb1] : (!pg.int<i32>) -> ()\n"),
                "not an importer entry trampoline", "a trampoline forwarding something else");
 
-  // Invalid integer and float kinds (constructible through the generated
-  // get(); review of PR #3): getChecked refuses them, the accessors stay in
-  // bounds, and export refuses a module that uses one.
+  // Invalid integer and float kinds (review of PR #3): getChecked refuses
+  // them. With assertions enabled, MLIR's unchecked get() asserts that the
+  // type verifier passes, so such a type cannot exist; without assertions
+  // (NDEBUG, the Release configuration) get() does not verify, so the
+  // accessors must stay in bounds and export must refuse the module.
   {
     int diags = 0;
     auto emit = [&]() {
@@ -236,6 +238,7 @@ int main() {
     CHECK(!pg::FloatType::getChecked(emit, &ctx, 4u), "FloatType::getChecked refuses kind 4");
     CHECK(pg::IntType::getChecked(emit, &ctx, 11u), "IntType::getChecked accepts usize");
     CHECK(diags == 2, "two diagnostics");
+#ifdef NDEBUG
     auto bad = pg::IntType::get(&ctx, 99u);
     CHECK(bad.getBits() == 0 && !bad.isSigned() && bad.getKindName() == "<invalid>", "accessors stay in bounds");
     mlir::OpBuilder b(&ctx);
@@ -258,6 +261,10 @@ int main() {
     CHECK(!pg::exportModule(mod2, out3, e3) && e3.find("invalid float kind 7") != std::string::npos,
           "export refuses an invalid float kind");
     mod2->erase();
+#else
+    std::printf("note: assertions enabled; MLIR's get() refuses invalid kinds itself, "
+                "unchecked-construction checks skipped\n");
+#endif
   }
 
   std::printf("mlir unit tests: %d failures\n", failures);

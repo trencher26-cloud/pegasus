@@ -132,3 +132,12 @@ modules still verify and round-trip; ctest 18/18.
 Verified locally: cargo fmt, clippy `-D warnings`, workspace tests, ctest
 18/18, round trips of 30 corpus and 858 fuzz-mutated programs through the
 certification chain, byte-identical.
+
+CI follow-up: the Windows Debug (multi-config) step caught that MLIR's
+unchecked `get()` asserts the type verifier when assertions are on, so the
+unit test's deliberately invalid `IntType::get(&ctx, 99u)` aborted there.
+In Debug such a type cannot exist; in Release (NDEBUG) `get()` does not
+verify, which is what the safe accessors and export checks are for. The
+unchecked-construction checks now run under NDEBUG only; `getChecked`
+checks run in every configuration. Reproduced locally with a Debug build
+(old test asserts, new one passes).
