@@ -44,7 +44,11 @@ The native code reproduces the reference interpreter (spec/pir.md §5):
   true product; division and remainder by zero trap; signed `MIN / -1`
   traps and `MIN % -1` is 0; a shift by at least the bit width traps; `**`
   traps unless the exact power fits (an exponent beyond `u32` traps unless
-  the base is an unsigned 0 or 1); unsigned negation traps.
+  the base is an unsigned 0 or 1); unsigned negation traps. 128-bit
+  division and remainder are computed by an IR helper (restoring
+  shift-subtract division) instead of LLVM's `i128` `div`/`rem`, which
+  lower to compiler-rt calls (`__divti3`, …) that MSVC's runtime lacks; the
+  same code runs on every platform.
 - **Places and references** — slots are stack allocations; a reference is
   the address of a place; `inout` writes reach the caller's storage. The
   verifier's provenance rule guarantees no reference outlives its frame, so
