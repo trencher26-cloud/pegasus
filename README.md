@@ -21,7 +21,8 @@ cargo run -p pegasus-driver -- check tests/sema/accept/basics.peg   # resolve an
 cargo run -p pegasus-driver -- hir tests/sema/accept/basics.peg     # also print typed HIR
 cargo run -p pegasus-driver -- pir tests/run/traits.peg             # print verified PIR
 cargo run -p pegasus-driver -- run tests/run/data.peg               # run main in the interpreter
-python3 tools/provision_llvm.py --prefix ../llvm                      # pinned clang + MLIR (hours, once)
+python3 tools/fetch_llvm_package.py --platform linux-x86_64 --dest ../llvm   # pinned, verified package (GH_TOKEN for provenance)
+# or build it from source: python3 tools/provision_llvm.py --prefix ../llvm  (hours)
 cmake -S . -B build -DPEGASUS_LLVM_ROOT=../llvm && cmake --build build && (cd build && ctest)
 # with a distribution clang 18.1.3 instead: -DPEGASUS_ALLOW_UNPINNED_LLVM=ON (commit not enforced)
 PEGASUS_NATIVE=build/backend/pegasus-native PEGASUS_RT=build/backend/libpegasus_rt.a \

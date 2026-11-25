@@ -48,7 +48,9 @@ class Runner:
         if b.returncode != 0:
             if "not supported by the native backend yet" in b.stderr:
                 return "unsupported", b.stderr.strip()
-            return "MISMATCH", f"build failed ({b.returncode}): {b.stderr.strip()[:2000]}"
+            # The linker's own messages (MSVC link.exe) arrive on stdout.
+            return "MISMATCH", (f"build failed ({b.returncode}): {b.stderr.strip()[:2000]}"
+                                f"{chr(10) + b.stdout.strip()[:2000] if b.stdout.strip() else ''}")
         n = subprocess.run([exe], capture_output=True, text=True, timeout=120)
         if not self.a.keep:
             os.remove(exe)
