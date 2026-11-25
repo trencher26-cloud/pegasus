@@ -1,0 +1,6 @@
+//@ id: E-012
+//@ tags: precedence, expr.await, expr.try, ambiguity.D
+//@ expect: accept
+//@ shape: (try (await (call f)))
+
+fn t() = await f()?

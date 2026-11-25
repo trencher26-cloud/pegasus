@@ -1,0 +1,6 @@
+//@ id: E-013
+//@ tags: precedence, expr.wrapping
+//@ expect: accept
+//@ shape: (+% a (*% b c))
+
+fn t() = a +% b *% c

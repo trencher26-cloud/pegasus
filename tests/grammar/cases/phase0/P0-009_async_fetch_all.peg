@@ -1,0 +1,7 @@
+//@ id: P0-009
+//@ tags: phase0, fn.async, expr.await, closure
+//@ expect: accept
+
+async fn fetch_all(urls: Span<Url>) -> Result<Vec<Bytes>, http.Error> {
+    await task.scope(s => urls.map(u => s.spawn(http.get(u))).join_all())
+}

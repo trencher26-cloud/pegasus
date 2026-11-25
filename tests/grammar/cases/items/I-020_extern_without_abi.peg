@@ -1,0 +1,7 @@
+//@ id: I-020
+//@ tags: item.extern, ambiguity.H
+//@ expect: reject
+//@ error: P001 offset=204 near="extern"
+//@ note: without an ABI string, extern is an ordinary identifier, which cannot start an item
+
+extern fn f()

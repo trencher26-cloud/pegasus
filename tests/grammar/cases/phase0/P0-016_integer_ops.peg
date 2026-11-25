@@ -1,0 +1,11 @@
+//@ id: P0-016
+//@ tags: phase0, expr.wrapping, expr.saturating
+//@ expect: accept
+
+fn ops(a: i32, b: i32) {
+    let w = a +% b
+    let s = a +| b
+    let c = a.checked_add(b)
+    let x = a ^ b
+    let p = a ** 2
+}

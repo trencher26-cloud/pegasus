@@ -1,0 +1,11 @@
+//@ id: I-015
+//@ tags: item.const, stmt.const
+//@ expect: accept
+//@ stmts: 2
+
+const MAX: usize = 1024
+
+fn t() {
+    const LOCAL: i32 = 3
+    LOCAL * 2
+}

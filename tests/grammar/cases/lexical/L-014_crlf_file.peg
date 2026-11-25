@@ -1,0 +1,9 @@
+//@ id: L-014
+//@ tags: lexical.crlf
+//@ expect: accept
+//@ stmts: 2
+
+fn t() {
+    let a = 1 // trailing comment
+    let b = 2
+}

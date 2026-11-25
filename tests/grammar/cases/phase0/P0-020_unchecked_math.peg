@@ -1,0 +1,7 @@
+//@ id: P0-020
+//@ tags: phase0, unsafe.cap
+//@ expect: accept
+
+fn hot(a: i32, b: i32) -> i32 {
+    unsafe(cap: UncheckedMath) { a.unchecked_add(b) }
+}

@@ -1,0 +1,9 @@
+//@ id: I-014
+//@ tags: fn.async, fn.comptime, fn.kernel, item.extern, ambiguity.H
+//@ expect: accept
+
+async fn a() {}
+comptime fn c() -> u32 = 4
+kernel fn k(d: inout DeviceSpan<f32>) {}
+extern "C" fn puts(s: *const c_char) -> i32
+pub async fn p() {}

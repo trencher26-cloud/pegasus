@@ -1,0 +1,45 @@
+//@ result: ([Cell { v: 10, w: 1 }, Cell { v: 25, w: 2 }, Cell { v: 3, w: 3 }], (7, (8, 9)), 25, 2, true, false, 13, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7], Empty {  })
+// Places and references in native code: arrays of structs, nested tuples,
+// `inout` borrows of an element's field (with a dynamic index), borrowed
+// returns through indexing and fields, structural equality of tuples and arrays, a long repeat
+// array written through a reference, and an empty struct.
+
+struct Cell {
+    v: i32
+    w: i32
+}
+
+struct Empty {}
+
+impl Copy for Cell {}
+
+fn set_v(c: inout Cell, v: i32) {
+    c.v = v
+}
+
+fn add(x: inout i32, n: i32) {
+    x += n
+}
+
+fn at(cs: [Cell; 3], i: usize) -> in Cell = cs[i]
+fn w_of(c: Cell) -> in i32 = c.w
+
+fn poke(xs: inout [u8; 80], i: usize, v: u8) {
+    xs[i] = v
+}
+
+fn main() -> ([Cell; 3], (i32, (i32, i32)), i32, i32, bool, bool, i32, [u8; 80], Empty) {
+    var cs = [Cell { v: 1, w: 1 }, Cell { v: 2, w: 2 }, Cell { v: 3, w: 3 }]
+    var i: usize = 0
+    set_v(&cs[i], 10)
+    i = 1
+    set_v(&cs[i], 20)
+    add(&cs[i].v, 5)
+    var t = (7, (8, 1))
+    add(&t.1.1, 8)
+    var b = cs
+    b[2].w = 4
+    var big = [0u8; 80]
+    poke(&big, 79, 7)
+    (cs, t, at(cs, 1).v, w_of(at(cs, 1)), t == (7, (8, 9)), [b[2].w, 1] == [cs[2].w, 1], 13, big, Empty {})
+}

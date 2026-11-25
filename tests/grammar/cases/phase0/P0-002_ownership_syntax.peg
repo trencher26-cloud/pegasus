@@ -1,0 +1,17 @@
+//@ id: P0-002
+//@ tags: phase0, param.mode, arg.borrow, arg.take
+//@ expect: accept
+
+fn push_all(dst: inout Vec<i32>, src: Span<i32>) {
+    for x in src { dst.push(x) }
+}
+
+fn consume(buf: own Buffer) {
+    buf.flush()
+}
+
+fn demo(buf: Buffer) {
+    var v = Vec.new()
+    push_all(&v, [1, 2, 3])
+    consume(take buf)
+}

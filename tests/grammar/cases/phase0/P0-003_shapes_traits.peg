@@ -1,0 +1,16 @@
+//@ id: P0-003
+//@ tags: phase0, item.enum, item.trait, item.impl, fn.expr_body, pattern.variant
+//@ expect: accept
+
+enum Shape { Circle(r: f64), Rect(w: f64, h: f64) }
+
+trait Area { fn area(self) -> f64 }
+
+impl Area for Shape {
+    fn area(self) -> f64 = match self {
+        Circle(r)  => PI * r**2,
+        Rect(w, h) => w * h,
+    }
+}
+
+fn total<T: Area>(xs: Span<T>) -> f64 = xs.map(x => x.area()).sum()

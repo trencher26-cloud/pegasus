@@ -1,0 +1,74 @@
+//@ result: (2, 12, [1, 6, 3], 11, 3, 7, 7, 11, 9, 11, 42, 42)
+// Borrow semantics (PIR0.3): `inout` writes reach the caller's storage —
+// through calls, reborrows, struct fields, array elements and `inout self` —
+// and borrowed returns (`-> in`) yield the caller's own data: a direct
+// parameter, a field projection, a projection of another borrowed result,
+// forwarding, branch selection and indexing.
+
+struct Counter {
+    value: i32
+}
+
+impl Counter {
+    fn inc(inout self) {
+        self.value += 1
+    }
+    fn current(self) -> in i32 = self.value
+}
+
+struct Inner {
+    value: i32
+}
+
+struct Outer {
+    inner: Inner
+    tag: i32
+}
+
+struct R {
+    id: i32
+}
+
+fn bump(r: inout Counter) {
+    r.value += 1
+}
+
+// Reborrow: an `inout` parameter passed on to another `inout` parameter.
+fn bump_twice(r: inout Counter) {
+    bump(&r)
+    bump(&r)
+}
+
+fn add_to(x: inout i32, n: i32) {
+    x += n
+}
+
+fn set_inner(o: inout Outer, v: i32) {
+    o.inner.value = v
+}
+
+fn get(r: R) -> in R = r
+fn inner_of(o: Outer) -> in Inner = o.inner
+fn inner_value(o: Outer) -> in i32 = inner_of(o).value
+fn forward(o: Outer) -> in Inner = inner_of(o)
+fn pick(a: R, b: R, first: bool) -> in R = if first { a } else { b }
+fn elem(xs: [i32; 3], i: usize) -> in i32 = xs[i]
+fn look(r: R) -> i32 = r.id
+fn look_inner(i: Inner) -> i32 = i.value
+
+fn main() -> (i32, i32, [i32; 3], i32, i32, i32, i32, i32, i32, i32, i32, i32) {
+    var c = Counter { value: 1 }
+    bump(&c)
+    var d = Counter { value: 10 }
+    bump_twice(&d)
+    var arr = [1, 2, 3]
+    add_to(&arr[1], 4)
+    var o = Outer { inner: Inner { value: 5 }, tag: 0 }
+    set_inner(&o, 11)
+    let r = R { id: 3 }
+    let s = R { id: 7 }
+    var e = Counter { value: 40 }
+    e.inc()
+    e.inc()
+    (c.value, d.value, arr, o.inner.value, get(r).id, look(get(s)), look(pick(r, s, false)), inner_value(o), elem([4, 5, 9], 2), look_inner(forward(o)), e.value, e.current())
+}

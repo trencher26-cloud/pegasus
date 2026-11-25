@@ -1,0 +1,9 @@
+//@ id: L-038
+//@ tags: lexical.bidi, lexical.comment, lexical.doc_comment
+//@ expect: accept
+//@ warning: W001 offset=190 near="\u{202A}"
+//@ warning: W001 offset=207 near="\u{2069}"
+
+/* a ‪ b */
+/// doc ⁩
+fn t() = 1

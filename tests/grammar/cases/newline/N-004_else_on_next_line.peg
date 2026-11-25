@@ -1,0 +1,13 @@
+//@ id: N-004
+//@ tags: newline.rule3, expr.if
+//@ expect: accept
+//@ stmts: 1
+
+fn t(c: bool) -> i32 {
+    if c {
+        1
+    }
+    else {
+        2
+    }
+}

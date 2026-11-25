@@ -1,0 +1,6 @@
+//@ id: E-009
+//@ tags: precedence, expr.cast, expr.unary
+//@ expect: accept
+//@ shape: (cast (neg x) i64)
+
+fn t() = -x as i64

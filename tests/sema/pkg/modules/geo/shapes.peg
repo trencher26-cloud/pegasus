@@ -1,0 +1,11 @@
+pub struct Circle {
+    pub r: f64
+}
+
+pub struct Square {
+    pub side: f64
+}
+
+pub fn unit_square() -> Square = Square { side: 1.0 }
+
+fn secret() -> i32 = 42

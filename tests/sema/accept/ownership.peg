@@ -1,0 +1,89 @@
+// PURM v0.1: programs that must be accepted.
+
+struct R {
+    id: i32
+}
+
+struct Pair2 {
+    a: R
+    b: R
+}
+
+struct P {
+    x: i32
+    y: i32
+}
+
+impl Copy for P {}
+
+enum Shape {
+    Dot(P),
+    Line(P, P),
+}
+
+impl Copy for Shape {}
+
+fn take(r: own R) -> i32 = r.id
+fn look(r: R) -> i32 = r.id
+fn bump(r: inout R) {
+    r.id += 1
+}
+
+// Borrowed returns tied to a parameter (Phase 0 rules 1-2).
+fn first(xs: [i32; 3]) -> in i32 = xs[0]
+fn id_of(r: R) -> in i32 = r.id
+
+fn disjoint_partial_moves() -> i32 {
+    let p = Pair2 { a: R { id: 1 }, b: R { id: 2 } }
+    take(p.a) + take(p.b)
+}
+
+fn reinitialize() -> i32 {
+    var r = R { id: 1 }
+    let a = take(r)
+    r = R { id: 2 }
+    a + look(r)
+}
+
+fn copies(p: P, s: Shape) -> i32 {
+    let q = p
+    let t = s
+    let u = s
+    p.x + q.y
+}
+
+fn moves_into_closure() -> i32 {
+    let r = R { id: 7 }
+    let f = () => look(r)
+    f()
+}
+
+fn branches(c: bool) -> i32 {
+    let r = R { id: 1 }
+    if c {
+        take(r)
+    } else {
+        take(r)
+    }
+}
+
+fn exclusive_ok() -> i32 {
+    var r = R { id: 1 }
+    let s = R { id: 2 }
+    bump(&r)
+    look(r) + look(s)
+}
+
+fn loop_reinit() -> i32 {
+    var total = 0
+    var r = R { id: 1 }
+    for i in 0..3 {
+        total += take(r)
+        r = R { id: i }
+    }
+    total
+}
+
+fn main() -> i32 {
+    disjoint_partial_moves() + reinitialize() + moves_into_closure() + branches(true) + exclusive_ok() + loop_reinit() + first([4, 5, 6]) + id_of(R { id: 0 })
+}

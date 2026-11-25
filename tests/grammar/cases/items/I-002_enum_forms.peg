@@ -1,0 +1,11 @@
+//@ id: I-002
+//@ tags: item.enum
+//@ expect: accept
+
+enum Token {
+    Eof
+    Int(i64)
+    Pair(i32, i32)
+    Named(line: u32, col: u32)
+    Span { start: u32, end: u32 }
+}

@@ -1,0 +1,17 @@
+// A package spread over files: `mod geo` loads geo/mod.peg, which loads
+// geo/shapes.peg; `pub use` re-exports, glob imports and privacy.
+
+mod geo
+mod util
+
+use geo.shapes.Circle
+use geo.area
+use util.*
+
+fn main() {
+    let c = Circle { r: 2.0 }
+    let a = area(c)
+    let d = double(a)
+    let sq = geo.shapes.unit_square()
+    let hidden = geo.shapes.secret() // error: R004
+}

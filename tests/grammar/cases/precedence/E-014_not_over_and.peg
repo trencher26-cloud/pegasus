@@ -1,0 +1,6 @@
+//@ id: E-014
+//@ tags: precedence, expr.logic, expr.unary
+//@ expect: accept
+//@ shape: (&& (not a) b)
+
+fn t() = !a && b

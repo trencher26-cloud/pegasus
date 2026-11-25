@@ -1,0 +1,7 @@
+//@ id: A-001
+//@ tags: ambiguity.A, expr.struct
+//@ expect: accept
+
+fn t(p: Point) {
+    if p == (Point { x: 0 }) { hit() }
+}

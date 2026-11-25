@@ -1,0 +1,4 @@
+//@ trap: index out of bounds: the length is 4 but the index is 18446744073709551615
+// A dynamic out-of-bounds index computed at run time.
+fn get(xs: [i64; 4], i: usize) -> i64 = xs[i]
+fn main() -> i64 = get([1, 2, 3, 4], 0usize -% 1)

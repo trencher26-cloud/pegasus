@@ -1,0 +1,9 @@
+//@ id: N-023
+//@ tags: newline.header, newline.rule4
+//@ expect: reject
+//@ error: P001 offset=193 near="where"
+//@ nl-kept: offset=192 near="\nwhere"
+//@ note: pair of N-022
+
+type A<T> = Box
+where T: Copy

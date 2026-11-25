@@ -1,0 +1,78 @@
+// Generic ADTs, trait bounds and supertraits, default methods, method
+// generics, const generics and type aliases. Generic values move only
+// through `own` parameters (PURM): an unbounded `T` is not Copy.
+
+trait Named {
+    fn name(self) -> str
+    fn greet(self) -> str = self.name()
+}
+
+trait Animal: Named {
+    fn legs(self) -> u32
+}
+
+struct Dog {}
+struct Bird {}
+
+impl Named for Dog {
+    fn name(self) -> str = "dog"
+}
+impl Animal for Dog {
+    fn legs(self) -> u32 = 4
+}
+impl Named for Bird {
+    fn name(self) -> str = "bird"
+}
+impl Animal for Bird {
+    fn legs(self) -> u32 = 2
+}
+
+// The supertrait's methods are available through the subtrait bound.
+fn describe<A: Animal>(a: A) -> (str, u32) = (a.greet(), a.legs())
+
+struct Pair<T> {
+    a: T
+    b: T
+}
+
+impl<T> Pair<T> {
+    fn new(a: own T, b: own T) -> Pair<T> = Pair { a, b }
+    fn swap(own self) -> Pair<T> = Pair { a: self.b, b: self.a }
+    fn first(own self) -> T = self.a
+    fn map<U>(own self, f: fn(T) -> U) -> Pair<U> = Pair { a: f(self.a), b: f(self.b) }
+}
+
+struct Grid<const N: usize> {
+    cells: [u8; N]
+}
+
+type Bytes4 = [u8; 4]
+type Opt<T> = T?
+
+const SIZE: usize = 2 + 2
+
+fn zeros() -> Bytes4 = [0; SIZE]
+
+fn wrap<T>(x: own T) -> Opt<T> = Some(x)
+
+fn largest<T: Copy>(xs: [T; 3], better: fn(T, T) -> bool) -> T {
+    var best = xs[0]
+    for x in xs {
+        if better(x, best) {
+            best = x
+        }
+    }
+    best
+}
+
+fn main() {
+    let (n, l) = describe(Dog {})
+    let p = Pair.new(1, 2).swap()
+    let q: Pair<i64> = Pair { a: 1, b: 2 }
+    let doubled = p.map((x) => x as i64 * 2)
+    let g = Grid { cells: [1, 2, 3] }
+    let z = zeros()
+    let w = wrap(5u16)
+    let m = largest([3, 9, 4], (a, b) => a > b)
+    let explicit = Pair<u8>.new(1, 2)
+}

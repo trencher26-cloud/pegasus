@@ -1,0 +1,7 @@
+//@ id: I-021
+//@ tags: fn.body
+//@ expect: reject
+//@ error: P006 offset=98 near="\nfn g"
+
+fn f()
+fn g() {}

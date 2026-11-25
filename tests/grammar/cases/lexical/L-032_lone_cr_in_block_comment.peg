@@ -1,0 +1,7 @@
+//@ id: L-032
+//@ tags: lexical.comment, lexical.crlf
+//@ expect: reject
+//@ error: L002 offset=117 near="\r"
+
+/* onetwo */
+fn t() = 1

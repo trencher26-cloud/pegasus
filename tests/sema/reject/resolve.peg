@@ -1,0 +1,35 @@
+// Name resolution errors.
+
+fn dup() = 1
+fn dup() = 2 // error: R001
+
+struct S {
+    a: i32
+    a: i32 // error: R001
+}
+
+use nowhere.thing // error: R002
+use std.io // error: R002
+
+mod inner {
+    fn secret() -> i32 = 1
+    pub fn open() -> i32 = 2
+    struct Hidden {}
+    pub struct Shown {
+        pub x: i32
+        y: i32
+    }
+}
+
+use inner.secret // error: R004
+
+fn uses() {
+    let a = inner.open()
+    let b = inner.secret() // error: R004
+    let c = missing_value // error: R009
+    let d = inner.nothing() // error: R010
+    let s = inner.Shown { x: 1, y: 2 } // error: R011
+}
+
+fn types(x: Nope) {} // error: R006
+fn self_outside(self) {} // error: R008

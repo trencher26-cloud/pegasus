@@ -1,0 +1,6 @@
+//@ id: E-017
+//@ tags: precedence, expr.postfix
+//@ expect: accept
+//@ shape: (try (index (mcall a b c) i))
+
+fn t() = a.b(c)[i]?

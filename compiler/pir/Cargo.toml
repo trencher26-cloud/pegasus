@@ -1,0 +1,11 @@
+[package]
+name = "pegasus-pir"
+description = "Pegasus IR (PIR v0.1): data structures, verifier, HIR lowering, reference interpreter"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+pegasus-parser = { path = "../parser" }
+pegasus-sema = { path = "../sema" }

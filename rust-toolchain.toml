@@ -1,0 +1,6 @@
+[toolchain]
+# 1.97.1 fixes an LLVM miscompilation present in 1.97.0 (released 2026-07-16).
+# Moving to 1.100 needs a test pass first: it changes never-type fallback in
+# edition 2021, which this workspace uses.
+channel = "1.97.1"
+components = ["rustfmt", "clippy"]

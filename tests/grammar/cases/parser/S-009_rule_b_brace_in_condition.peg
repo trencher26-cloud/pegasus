@@ -1,0 +1,9 @@
+//@ id: S-009
+//@ tags: rule.B, expr.ns, expr.if
+//@ expect: reject
+//@ error: P002 offset=302 near=">"
+//@ note: rule B in expr_ns: `{` is not a generic follower in an if condition, so `a < b >` are comparisons and chain; `{ c }` is never read as `a<b>` followed by the if body
+
+fn t() {
+    if a < b > { c }
+}

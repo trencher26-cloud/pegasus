@@ -1,0 +1,6 @@
+//@ id: L-004
+//@ tags: lexical.int, expr.range
+//@ expect: accept
+//@ shape: (range 1 2)
+
+fn t() = 1..2

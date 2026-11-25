@@ -1,0 +1,6 @@
+//@ id: A-006
+//@ tags: ambiguity.B, expr.cmp
+//@ expect: accept
+//@ shape: (< a b)
+
+fn t() = a < b

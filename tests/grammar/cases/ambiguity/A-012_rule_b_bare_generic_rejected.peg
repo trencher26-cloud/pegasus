@@ -1,0 +1,9 @@
+//@ id: A-012
+//@ tags: ambiguity.B
+//@ expect: reject
+//@ error: P002 offset=193 near=">\n"
+//@ note: not a generic application, so it reads as a chained comparison
+
+fn t() {
+    let x = Foo<T>
+}

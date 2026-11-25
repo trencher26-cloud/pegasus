@@ -1,0 +1,7 @@
+# CANDIDATE goldens: produced by the hand-written lexer, NOT by the independent
+# reference implementation, and NOT yet reviewed. They detect regressions in
+# this lexer; they are not authoritative. See tests/grammar/README.md.
+status          = "candidate-unreviewed"
+generator       = "pegasus-lexer 0.0.1 (hand-written Rust)"
+grammar_version = "0.1.1-draft"
+cases           = 180

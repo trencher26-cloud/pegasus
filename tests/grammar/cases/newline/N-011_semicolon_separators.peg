@@ -1,0 +1,8 @@
+//@ id: N-011
+//@ tags: newline.semicolon
+//@ expect: accept
+//@ stmts: 3
+
+fn t() -> i32 {
+    let a = 1; let b = 2; a + b
+}

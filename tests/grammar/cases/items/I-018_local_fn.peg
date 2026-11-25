@@ -1,0 +1,8 @@
+//@ id: I-018
+//@ tags: stmt.local_item
+//@ expect: reject
+//@ error: P013 offset=117 near="fn helper"
+
+fn t() {
+    fn helper() = 1
+}

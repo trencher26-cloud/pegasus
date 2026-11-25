@@ -1,0 +1,7 @@
+//@ id: S-010
+//@ tags: rule.B, generic.args, generic.const
+//@ expect: accept
+//@ shape: (gcall f ({N > 1}) x)
+//@ note: rule B skips a matched brace group: the `>` inside `{N > 1}` is part of a constant expression, not the closer of the argument list
+
+fn t() = f<{N > 1}>(x)

@@ -1,0 +1,7 @@
+//@ id: A-023
+//@ tags: ambiguity.D, expr.await
+//@ expect: reject
+//@ error: P001 offset=222 near=".g()"
+//@ note: trailing ? ends the await operand; call a method on an awaited value with parentheses
+
+fn t() = await f()?.g()

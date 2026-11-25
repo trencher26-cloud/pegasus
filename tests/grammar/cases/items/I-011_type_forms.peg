@@ -1,0 +1,16 @@
+//@ id: I-011
+//@ tags: type
+//@ expect: accept
+
+fn t(
+    f: fn(i32) -> i32 effects(io),
+    p: *const u8,
+    q: *var u8,
+    o: str?,
+    a: [u8; 256],
+    d: dyn Display + Send,
+    u: (),
+    one: (i32,),
+    two: (i32, str),
+    g: Map<str, Vec<i32>>,
+) {}

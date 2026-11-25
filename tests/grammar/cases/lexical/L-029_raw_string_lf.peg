@@ -1,0 +1,8 @@
+//@ id: L-029
+//@ tags: lexical.raw_string, lexical.crlf
+//@ expect: accept
+//@ value: A = "one\ntwo"
+//@ note: pair of L-030: same value from LF source
+
+const A: str = r"one
+two"

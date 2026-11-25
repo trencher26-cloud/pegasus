@@ -1,0 +1,8 @@
+//@ id: I-007
+//@ tags: item.use
+//@ expect: accept
+
+use std.io
+use std.collections.{Vec, Map as M}
+use std.math.*
+use r#async.runtime

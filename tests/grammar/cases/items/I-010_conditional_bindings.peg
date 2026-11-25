@@ -1,0 +1,10 @@
+//@ id: I-010
+//@ tags: pattern, expr.if, expr.while, expr.for
+//@ expect: accept
+
+fn t(it: Iter, m: Map) {
+    if let Some(v) = m.get(1) { use_it(v) }
+    while let Some(x) = it.next() { use_it(x) }
+    for (k, v) in m.entries() { use_it(k) }
+    loop { break }
+}

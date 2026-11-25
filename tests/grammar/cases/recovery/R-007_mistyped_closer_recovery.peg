@@ -1,0 +1,12 @@
+//@ id: R-007
+//@ tags: recovery, recovery.bracket, newline.rule1
+//@ expect: reject
+//@ error: P010 offset=357 near="]"
+//@ nl-kept: offset=358 near="\n    next()"
+//@ nl-kept: offset=369 near="\n}"
+//@ note: `]` closes the innermost `(` as a mistyped closer (grammar 8), so the following newlines are statement separators again
+
+fn t() {
+    let p = (1, 2]
+    next()
+}

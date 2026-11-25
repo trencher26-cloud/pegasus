@@ -1,0 +1,11 @@
+//@ id: A-020
+//@ tags: ambiguity.G, type.unit, generic.const
+//@ expect: accept
+
+fn t() {
+    let a: f64<m/s**2> = 9.81
+    let b: Foo<1> = make()
+    let c: Vec<T> = make()
+    let d: f64<kg/(m*s**2)> = 1.0
+    let e: f64<m> = 1.0
+}

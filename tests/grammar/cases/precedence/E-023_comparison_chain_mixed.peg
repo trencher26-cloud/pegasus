@@ -1,0 +1,6 @@
+//@ id: E-023
+//@ tags: precedence, expr.cmp
+//@ expect: reject
+//@ error: P002 offset=120 near="== ok"
+
+fn t() = x < y == ok

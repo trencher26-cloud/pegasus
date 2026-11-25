@@ -1,0 +1,7 @@
+//@ id: N-014
+//@ tags: newline.rule2, expr.cast
+//@ expect: accept
+//@ shape: (cast x i64)
+
+fn t() = x as
+    i64

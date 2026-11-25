@@ -1,0 +1,10 @@
+//@ id: L-001
+//@ tags: lexical.int
+//@ expect: accept
+
+const A: u32 = 1_000u32
+const B: u32 = 0xFF_FF
+const C: u32 = 0o17
+const D: u8 = 0b1010_1010
+const E: i64 = 1_000_
+const F: u8 = 0xFFu8

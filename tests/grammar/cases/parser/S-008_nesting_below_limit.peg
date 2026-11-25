@@ -1,0 +1,7 @@
+//@ id: S-008
+//@ tags: recovery.limit, expr.paren
+//@ expect: accept
+//@ shape: 0
+//@ note: boundary: the body plus 127 parentheses make 128 levels, exactly the limit, which is accepted (S-006 is one level deeper)
+
+fn t() = (((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((0)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))

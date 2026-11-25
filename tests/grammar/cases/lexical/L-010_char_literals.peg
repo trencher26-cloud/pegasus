@@ -1,0 +1,7 @@
+//@ id: L-010
+//@ tags: lexical.char
+//@ expect: accept
+
+const A: char = 'a'
+const B: char = '\u{1F600}'
+const C: char = '\n'

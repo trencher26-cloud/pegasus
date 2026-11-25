@@ -1,0 +1,8 @@
+//@ id: P0-011
+//@ tags: phase0, return.borrow, expr.range, expr.if
+//@ expect: accept
+
+fn first(items: Span<i32>) -> i32 { items[0] }
+fn head(items: Span<i32>) -> in i32 { items[0] }
+impl Parser { fn rest(self) -> str { self.src[self.pos..] } }
+fn longer(a: str, b: str) -> str { if a.len >= b.len { a } else { b } }

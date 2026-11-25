@@ -1,0 +1,11 @@
+//@ id: N-009
+//@ tags: newline.rule2, type.generic
+//@ expect: reject
+//@ error: P001 offset=215 near="\n    > ="
+//@ note: error is reported at the surviving NEWLINE after i32
+
+fn t() {
+    let v: Vec<
+        i32
+    > = make()
+}

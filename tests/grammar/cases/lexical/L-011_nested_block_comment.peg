@@ -1,0 +1,6 @@
+//@ id: L-011
+//@ tags: lexical.comment
+//@ expect: accept
+
+/* outer /* inner */ still outer **/
+fn t() = 1

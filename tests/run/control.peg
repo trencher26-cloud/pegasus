@@ -1,0 +1,74 @@
+//@ result: (521, 32640, 10, 7, 15, 3, "two")
+// Loops, break values, inclusive ranges ending at the type's maximum,
+// arrays, while-let, defer order and early return.
+
+fn defers() -> i32 {
+    var x = 0
+    {
+        defer { x = x * 10 + 1 }
+        defer { x = x * 10 + 2 }
+        x = 5
+    }
+    x
+}
+
+fn sum_u8_range() -> u32 {
+    var s: u32 = 0
+    for i in 0u8..=255 {
+        s += i as u32
+    }
+    s
+}
+
+fn first_over(xs: [i32; 5], limit: i32) -> i32 {
+    var i: usize = 0
+    let found = loop {
+        if xs[i] > limit {
+            break xs[i]
+        }
+        i += 1
+    }
+    found
+}
+
+fn early(n: i32) -> i32 {
+    var k = 0
+    while true {
+        k += 1
+        if k == n {
+            return k
+        }
+    }
+    -1
+}
+
+fn countdown(start: i32?) -> i32 {
+    var cur = start
+    var total = 0
+    while let Some(v) = cur {
+        total += v
+        cur = if v > 0 { Some(v - 1) } else { None }
+    }
+    total
+}
+
+fn names(n: u8) -> str = match n {
+    0 => "zero",
+    1 | 2 if n == 2 => "two",
+    1 => "one",
+    _ => "many",
+}
+
+fn main() -> (i32, u32, i32, i32, i32, i32, str) {
+    let skip = {
+        var c = 0
+        for i in 0..10 {
+            if i % 3 != 0 {
+                continue
+            }
+            c += 1
+        }
+        c - 1
+    }
+    (defers(), sum_u8_range(), first_over([1, 5, 10, 20, 30], 9), early(7), countdown(Some(5)), skip, names(2))
+}

@@ -1,0 +1,8 @@
+//@ id: S-005
+//@ tags: newline.rule2a, rule.B
+//@ expect: reject
+//@ error: P002 offset=282 near=">"
+//@ note: rule 2a with rule B: the NEWLINE after `>` is a possible separator, so `(` on the next line is no generic follower; `<` and `>` are comparisons and chain
+
+fn t() = f < T >
+(x)

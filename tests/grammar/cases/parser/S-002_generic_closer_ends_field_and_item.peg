@@ -1,0 +1,14 @@
+//@ id: S-002
+//@ tags: newline.rule2a, generic.args, item.struct, item.use
+//@ expect: accept
+//@ note: rule 2a: line-ending generic closers separate struct fields and items, and a line-ending use glob separates items
+
+type Bytes = Vec<u8>
+struct S {
+    a: Vec<u8>
+    b: Map<K, Vec<V>>
+    c: i32
+}
+use std.math.*
+use std.io
+const N: Vec<u8> = make()

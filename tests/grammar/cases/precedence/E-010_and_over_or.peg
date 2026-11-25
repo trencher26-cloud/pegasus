@@ -1,0 +1,6 @@
+//@ id: E-010
+//@ tags: precedence, expr.logic
+//@ expect: accept
+//@ shape: (|| (&& a b) (&& c d))
+
+fn t() = a && b || c && d

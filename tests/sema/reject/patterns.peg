@@ -1,0 +1,45 @@
+// Pattern errors and exhaustiveness.
+
+enum E {
+    A,
+    B(i32),
+    C { x: i32 },
+}
+
+fn missing(e: E) -> i32 = match e { // error: T082
+    A => 1,
+    B(n) => n,
+}
+
+fn ints(x: i32) -> i32 = match x { // error: T082
+    0 => 1,
+    1 => 2,
+}
+
+fn guarded(o: i32?) -> i32 = match o { // error: T082
+    Some(v) if v > 0 => v,
+    None => 0,
+}
+
+fn refutable(o: i32?) {
+    let Some(v) = o // error: T081
+}
+
+fn or_bindings(e: E) -> i32 = match e {
+    B(n) | C { x: n } => n,
+    A => 0,
+}
+
+fn or_missing(e: E) -> i32 = match e {
+    B(n) | A => 0, // error: T072
+    C { .. } => 1,
+}
+
+fn arity(t: (i32, i32)) {
+    let (a, b, c) = t // error: T077
+}
+
+fn fields(e: E) -> i32 = match e {
+    C {} => 1, // error: T048
+    _ => 0,
+}

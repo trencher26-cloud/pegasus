@@ -1,0 +1,28 @@
+// The Pegasus core prelude (sema v0.1).
+//
+// Every package implicitly imports the public names of this module.
+// Only the types that the language itself refers to live here:
+// `T?` is sugar for Option<T>, and `?` works on Option and Result
+// (Phase 0 spec, sections 5 and 7). Collections, strings and I/O belong to
+// the standard library, which does not exist yet.
+
+pub enum Option<T> {
+    Some(T),
+    None,
+}
+
+pub enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+
+// The variants are in scope unqualified, as `Some(x)`, `None`, `Ok(v)`, `Err(e)`.
+pub use Option.*
+pub use Result.*
+
+/// Marker trait: values of a Copy type are duplicated bitwise when used,
+/// instead of being moved (PURM, spec/purm.md §1).
+pub trait Copy {}
+
+impl<T: Copy> Copy for Option<T> {}
+impl<T: Copy, E: Copy> Copy for Result<T, E> {}

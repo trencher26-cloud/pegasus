@@ -1,0 +1,19 @@
+# Pegasus toolchain pins. CI provisions exactly these
+# (tools/provision_llvm.py); tools/check_toolchain.py enforces them.
+
+[rust]
+# Also pinned in rust-toolchain.toml.
+channel = "1.97.1"
+
+[llvm]
+# The native backend emits textual LLVM IR for this release and compiles it
+# with clang from the same build. LLVM, clang and MLIR (the next backend
+# stage) are built together from this one llvm-project commit, so they
+# always match. The tag must peel to the commit; the built clang reports the
+# commit in `clang --version`, and the provisioning stamp records the
+# SHA-256 of the clang binary it built.
+source = "https://github.com/llvm/llvm-project"
+release = "llvmorg-18.1.3"
+commit = "c13b7485b87909fcf739f62cfa382b55407433c0"
+version = "18.1.3"
+projects = "clang;mlir"

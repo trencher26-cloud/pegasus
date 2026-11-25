@@ -1,0 +1,8 @@
+//@ id: L-020
+//@ tags: lexical.comment
+//@ expect: reject
+//@ error: L004 offset=108 near="/*"
+
+fn t() = 1
+/* never closed
+fn u() = 2

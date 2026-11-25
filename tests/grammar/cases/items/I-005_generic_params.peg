@@ -1,0 +1,7 @@
+//@ id: I-005
+//@ tags: generic.param
+//@ expect: accept
+
+fn pick<T: Ord + Copy, const N: usize, U = i32>(xs: [T; N], u: U) -> T where U: Default {
+    xs[0]
+}

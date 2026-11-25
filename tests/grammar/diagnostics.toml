@@ -1,0 +1,43 @@
+# Pegasus grammar diagnostics catalogue (corpus v0.1.6, grammar v0.1.2-draft)
+#
+# Stable message IDs used by the conformance corpus. IDs are never reused or
+# renumbered; a retired ID stays listed with retired = true.
+# L = lexical error, P = syntactic error (newline filter or parser), W = warning
+# (reported, but the program stays valid).
+
+[lexical]
+L001 = { summary = "invalid UTF-8 sequence", section = "2.1" }
+L002 = { summary = "lone carriage return (CR without LF)", section = "2.1" }
+L003 = { summary = "bidirectional control character outside a comment or string", section = "2.1" }
+L004 = { summary = "unterminated block comment", section = "2.2" }
+L005 = { summary = "unterminated string, byte string or character literal", section = "2.7" }
+L006 = { summary = "invalid numeric literal or suffix (hint: units come from types, e.g. ms(2))", section = "2.5" }
+L007 = { summary = "invalid escape sequence", section = "2.7" }
+L008 = { summary = "invalid raw identifier (r#self, r#Self and r#_ are not allowed)", section = "2.3" }
+L009 = { summary = "character that starts no token", section = "2.2" }
+L010 = { summary = "unterminated raw string", section = "2.7" }
+L011 = { summary = "character literal must contain exactly one character", section = "2.7" }
+L012 = { summary = "nested interpolation: a string inside a hole may not have holes (v1)", section = "2.7" }
+L013 = { summary = "unmatched '}' in a string (write '}}' for a literal brace)", section = "2.7" }
+L014 = { summary = "unterminated interpolation hole (format specification not closed by '}')", section = "2.7" }
+L015 = { summary = "byte strings may contain only printable ASCII and escapes", section = "2.7" }
+
+[parser]
+P001 = { summary = "unexpected token (message names what was expected)", section = "4-6" }
+P002 = { summary = "comparison operators do not chain (hint: use &&)", section = "6.1" }
+P003 = { summary = "range operators do not chain", section = "6.1" }
+P004 = { summary = "assignment is a statement, not an expression (hint: use == to compare)", section = "5.1" }
+P006 = { summary = "function declaration has no body", section = "4.2" }
+P007 = { summary = "at most one of async, comptime, kernel may prefix fn", section = "4.2" }
+P008 = { summary = "doc comment is not followed by an item, field or variant", section = "2.2" }
+P009 = { summary = "generic argument scan exceeded 256 tokens", section = "7 rule B" }
+P010 = { summary = "mismatched closing bracket (message names the opener)", section = "8" }
+P011 = { summary = "'mut' is not a Pegasus keyword (hint: use var)", section = "8" }
+P012 = { summary = "item kind not allowed in this body (impl or trait)", section = "4.3" }
+P013 = { summary = "local fn, struct and enum items are not allowed in blocks in v1", section = "5.1" }
+P015 = { summary = "assignment does not chain", section = "5.1" }
+P017 = { summary = "if body must be a block (hint: C-style brace-less if)", section = "6.2" }
+P018 = { summary = "nesting exceeds 128 levels (expressions, types, patterns, prefix and ** chains)", section = "8" }
+
+[warnings]
+W001 = { summary = "bidirectional control character inside a comment or literal (Trojan Source risk)", section = "2.1" }

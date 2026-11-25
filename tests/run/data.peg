@@ -1,0 +1,74 @@
+//@ result: (Point { x: 10, y: 2 }, [1, 99, 3], 7, Err("odd"), Some(3), 12, 50000)
+// Struct update syntax, nested assignment, array element assignment, `?`
+// propagation for Result and Option, enums with payloads, deep recursion,
+// a `Copy` struct.
+
+struct Point {
+    x: i32
+    y: i32
+}
+
+// Point is a plain value: copied, not moved (PURM `Copy`).
+impl Copy for Point {}
+
+struct Line {
+    from: Point
+    to: Point
+}
+
+enum Expr {
+    Num(i64),
+    Add { l: i64, r: i64 },
+    Neg(i64),
+}
+
+fn eval(e: Expr) -> i64 = match e {
+    Num(n) => n,
+    Add { l, r } => l + r,
+    Neg(n) => -n,
+}
+
+fn halve(x: i32) -> Result<i32, str> {
+    if x % 2 != 0 {
+        return Err("odd")
+    }
+    Ok(x / 2)
+}
+
+fn quarter(x: i32) -> Result<i32, str> {
+    let h = halve(x)?
+    halve(h)
+}
+
+fn first_pos(xs: [i32; 4]) -> usize? {
+    var i: usize = 0
+    while i < 4 {
+        if xs[i] > 0 {
+            return Some(i)
+        }
+        i += 1
+    }
+    None
+}
+
+fn plus_one(o: usize?) -> usize? {
+    let v = o?
+    Some(v + 1)
+}
+
+fn depth(n: u32) -> u32 = if n == 0 { 0 } else { 1 + depth(n - 1) }
+
+fn main() -> (Point, [i32; 3], i32, Result<i32, str>, usize?, i64, u32) {
+    let p = Point { x: 1, y: 2 }
+    let q = Point { x: 10, ..p }
+    var line = Line { from: p, to: q }
+    line.to.y = 7
+    var arr = [1, 2, 3]
+    arr[1] = 99
+    let r = quarter(28)
+    let bad = quarter(6)
+    let pos = plus_one(first_pos([-1, -2, 5, 1]))
+    let total = eval(Expr.Num(5)) + eval(Expr.Add { l: 3, r: 6 }) + eval(Expr.Neg(2))
+    let _unused = r
+    (q, arr, line.to.y, bad, pos, total, depth(50000))
+}

@@ -1,0 +1,13 @@
+//@ id: P0-012
+//@ tags: phase0, fn.async, expr.await, expr.try
+//@ expect: accept
+
+async fn fetch_data(url: Url) -> Result<Data, http.Error> {
+    let response = await http.get(url)?
+    response.parse()
+}
+
+async fn main() {
+    let data = await fetch_data(URL)
+    process(data)
+}

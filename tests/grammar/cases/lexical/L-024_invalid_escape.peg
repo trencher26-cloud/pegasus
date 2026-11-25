@@ -1,0 +1,6 @@
+//@ id: L-024
+//@ tags: lexical.string
+//@ expect: reject
+//@ error: L007 offset=117 near="\\q"
+
+const S: str = "bad \q escape"

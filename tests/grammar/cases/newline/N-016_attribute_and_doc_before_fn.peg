@@ -1,0 +1,8 @@
+//@ id: N-016
+//@ tags: newline.header, attribute, lexical.doc_comment
+//@ expect: accept
+
+/// Documented.
+@inline
+@target(cpu)
+pub fn t() = 1

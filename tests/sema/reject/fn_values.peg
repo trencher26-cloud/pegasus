@@ -1,0 +1,19 @@
+// Function values (PIR0.3): function types carry no parameter or return
+// modes, so only functions taking `in` parameters and returning owned values
+// can be used as values.
+
+struct R {
+    id: i32
+}
+
+fn get(r: R) -> in R = r
+fn bump(r: inout R) {}
+fn sink(r: own R) {}
+fn look(r: R) -> i32 = r.id
+
+fn function_values() {
+    let f = bump // error: T065
+    let g = get // error: T065
+    let h = sink // error: T065
+    let ok = look
+}

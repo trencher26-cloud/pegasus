@@ -1,0 +1,9 @@
+//@ id: L-033
+//@ tags: lexical.raw_ident
+//@ expect: reject
+//@ error: L008 offset=190 near="r#Self"
+//@ note: exactly one L008 diagnostic; r#Self is a single ERROR token
+
+fn t() {
+    let r#Self = 1
+}

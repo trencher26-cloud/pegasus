@@ -1,0 +1,234 @@
+(* Pegasus grammar v0.1.1 (draft) - machine-readable copy.
+   Extracted by tools/extract_ebnf.py from the grammar specification document.
+   The document stays normative for the newline filter (section 3), ambiguity
+   rules (section 7) and error recovery (section 8). CI checks that every
+   production here is mapped in tests/grammar/coverage.toml. *)
+
+(* ===== 2.2 Whitespace and comments ===== *)
+LINE_END      ::= "\n" | "\r\n"
+WHITESPACE    ::= ( " " | "\t" )+                          (* not emitted *)
+NEWLINE       ::= LINE_END                                 (* emitted; filtered in section 3 *)
+COMMENT_CHAR  ::= [^\r\n]                                   (* never consumes any part of a LINE_END *)
+LINE_COMMENT  ::= "//" ( [^/\r\n] COMMENT_CHAR* )?          (* "//", "// text" *)
+                | "////" COMMENT_CHAR*                      (* four or more slashes: ordinary comment *)
+                                                           (* not emitted; the following LINE_END still yields NEWLINE *)
+DOC_COMMENT   ::= "///" ( [^/\r\n] COMMENT_CHAR* )? DOC_END (* exactly three slashes *)
+DOC_END       ::= LINE_END | (* end of input, not consumed *)
+BLOCK_COMMENT ::= "/*" ( BLOCK_COMMENT | BLOCK_CHAR )* "*/"  (* nests; not emitted *)
+BLOCK_CHAR    ::= COMMENT_CHAR | LINE_END                   (* a lone \r is never a BLOCK_CHAR *)
+EOF           ::= (* end of input; emitted once, last *)
+ERROR         ::= (* a character that starts no token, or a malformed token; emitted; see section 8 *)
+
+(* ===== 2.3 Identifiers and keywords ===== *)
+ID_START    ::= "_" | (* any character with Unicode property XID_Start *)
+ID_CONTINUE ::= (* any character with Unicode property XID_Continue *)
+WORD        ::= ID_START ID_CONTINUE*                     (* always read to its longest extent *)
+
+KEYWORD     ::= "as" | "async" | "await" | "break" | "comptime" | "const" | "continue" | "defer"
+              | "else" | "enum" | "ensures" | "false" | "fn" | "for" | "if" | "impl" | "in"
+              | "kernel" | "let" | "loop" | "match" | "mod" | "pub" | "requires" | "return"
+              | "self" | "Self" | "struct" | "trait" | "true" | "type" | "unsafe" | "use"
+              | "var" | "where" | "while"             (* 36 reserved words; compared against the whole WORD *)
+CONTEXTUAL_KEYWORD ::= "own" | "inout" | "take" | "effects" | "extern" | "with" | "region" | "dyn" | "cap"
+                                                          (* lexed as IDENT; a keyword only where a production names it *)
+
+IDENT       ::= WORD - KEYWORD - "_"
+RAW_IDENT   ::= "r#" ( WORD - "self" - "Self" - "_" )
+RAW_IDENT_INVALID ::= "r#" ( "self" | "Self" | "_" )     (* emitted as ONE ERROR token, diagnostic L008 *)
+UNDERSCORE  ::= "_"
+
+name        ::= IDENT | RAW_IDENT                         (* every declared or referenced ordinary name *)
+
+(* ===== 2.4 Punctuation and operators ===== *)
+PUNCT ::= "**=" | "<<=" | ">>=" | "..="                             (* three characters *)
+        | "**" | "+%" | "-%" | "*%" | "+|" | "-|" | "*|" | "<<" | ">>" | "<=" | ">="
+        | "==" | "!=" | "&&" | "||" | ".." | "=>" | "->" | "+=" | "-=" | "*=" | "/="
+        | "%=" | "&=" | "|=" | "^="                                      (* two characters *)
+        | "+" | "-" | "*" | "/" | "%" | "&" | "|" | "^" | "~" | "!" | "<" | ">" | "="
+        | "?" | "." | "," | ":" | ";" | "@" | "(" | ")" | "[" | "]" | "{" | "}"  (* one character *)
+
+(* ===== 2.5 Numeric literals ===== *)
+DIGIT        ::= "0" .. "9"
+HEX_DIGIT    ::= DIGIT | "a" .. "f" | "A" .. "F"
+HEX_DIGITS   ::= HEX_DIGIT ( HEX_DIGIT | "_" )*
+OCT_DIGITS   ::= ( "0" .. "7" ) ( "0" .. "7" | "_" )*
+BIN_DIGITS   ::= ( "0" | "1" ) ( "0" | "1" | "_" )*
+DEC          ::= DIGIT ( DIGIT | "_" )*
+INT_LIT      ::= ( DEC | "0x" HEX_DIGITS | "0o" OCT_DIGITS | "0b" BIN_DIGITS ) INT_SUFFIX?
+FLOAT_LIT    ::= DEC "." DEC EXPONENT? FLOAT_SUFFIX?
+               | DEC EXPONENT FLOAT_SUFFIX?
+               | DEC FLOAT_SUFFIX
+EXPONENT     ::= ( "e" | "E" ) ( "+" | "-" )? DEC
+INT_SUFFIX   ::= "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
+FLOAT_SUFFIX ::= "f16" | "bf16" | "f32" | "f64"
+
+(* ===== 2.7 Character and string literals ===== *)
+CHAR_LIT     ::= "'" ( [^'\\\n\r] | ESCAPE ) "'"
+STRING_LIT   ::= '"' ( STR_CHAR | ESCAPE | "{{" | "}}" | INTERP )* '"'
+STR_CHAR     ::= [^"\\{}\n\r]                              (* single-line: no raw line breaks *)
+INTERP       ::= "{" expression ( ":" FORMAT_SPEC )? "}"   (* lexer switches to expression mode *)
+FORMAT_SPEC  ::= [^{}"\n\r]*                                (* no escapes; ends at "}" *)
+RAW_STRING   ::= "r" HASHES '"' RAW_CHAR* '"' HASHES        (* both HASHES equal in length *)
+HASHES       ::= "#"*                                       (* 0 to 255 *)
+RAW_CHAR     ::= [^\r] | "\r\n"                             (* LF and CR LF allowed; a lone \r is an error *)
+                                                           (* the string ends at the first '"' followed by the same number of "#" *)
+BYTE_STRING  ::= "b" '"' ( ASCII_CHAR | BYTE_ESCAPE )* '"'
+ASCII_CHAR   ::= (* U+0020 to U+007E except '"' and "\\" *)
+BYTE_ESCAPE  ::= "\\" ( "n" | "r" | "t" | "0" | "\\" | '"' ) | "\\x" HEX_DIGIT HEX_DIGIT
+ESCAPE       ::= "\\" ( "n" | "r" | "t" | "0" | "\\" | "'" | '"' | "{" | "}" ) | "\\u{" HEX_DIGIT{1,6} "}"
+
+(* ===== 3. Newlines and statement termination / Suppression rules ===== *)
+stmt_sep ::= ( NEWLINE | ";" )+        (* between statements and items, sections 4 and 5 *)
+
+(* ===== 3. Newlines and statement termination / Newlines as list separators ===== *)
+brace_sep ::= "," NEWLINE? | NEWLINE
+
+(* ===== 4.1 Modules and items ===== *)
+module      ::= stmt_sep? ( item ( stmt_sep item )* stmt_sep? )? EOF
+item        ::= DOC_COMMENT* attribute* "pub"? item_kind
+item_kind   ::= use_decl | mod_decl | fn_decl | extern_fn | struct_decl | enum_decl
+              | trait_decl | impl_decl | type_alias | const_decl
+
+use_decl    ::= "use" use_tree
+use_tree    ::= path ( "as" name | "." "{" list(use_tree, ",") "}" | "." "*" )?
+mod_decl    ::= "mod" name ( "{" stmt_sep? ( item ( stmt_sep item )* stmt_sep? )? "}" )?
+path        ::= path_start ( "." name )*
+path_start  ::= name | "self" | "Self"
+
+attribute   ::= "@" path ( "(" list(attr_arg, ",")? ")" )? NEWLINE?
+attr_arg    ::= ( name ":" )? expression
+
+(* ===== 4.2 Functions ===== *)
+fn_decl     ::= fn_sig fn_body
+fn_sig      ::= fn_prefix? "fn" name generic_params? "(" list(param, ",")? ")"
+                return_type? effects? clause*
+fn_prefix   ::= "async" | "comptime" | "kernel"
+fn_body     ::= block | "=" expression                 (* "=" form: syntactic sugar for a one-expression block *)
+extern_fn   ::= "extern" STRING_LIT "fn" name "(" list(param, ",")? ")" return_type?
+
+param       ::= self_param | pattern_ident ":" param_mode? type
+self_param  ::= param_mode? "self"
+param_mode  ::= "in" | "inout" | "own"
+return_type ::= "->" "in"? type                        (* "in" marks a returned borrow *)
+effects     ::= "effects" "(" list(name, ",")? ")"
+clause      ::= "requires" expr_ns | "ensures" expr_ns | "where" list(where_pred, ",")
+where_pred  ::= type ":" bounds
+
+generic_params ::= "<" list(generic_param, ",") ">"
+generic_param  ::= name ( ":" bounds )? ( "=" type )? | "const" name ":" type
+bounds         ::= path_type ( "+" path_type )*
+
+(* ===== 4.3 Structs, enums, traits, impls, aliases, constants ===== *)
+struct_decl  ::= "struct" name generic_params? where_clause? "{" NEWLINE? list(field, brace_sep)? "}"
+field        ::= DOC_COMMENT* attribute* "pub"? name ":" type
+enum_decl    ::= "enum" name generic_params? where_clause? "{" NEWLINE? list(variant, brace_sep)? "}"
+variant      ::= DOC_COMMENT* attribute* name ( "(" list(variant_elem, ",") ")"
+                                          | "{" NEWLINE? list(field, brace_sep) "}" )?
+variant_elem ::= ( name ":" )? type                     (* Circle(r: f64) or Pair(i32, i32) *)
+
+trait_decl   ::= "trait" name generic_params? ( ":" bounds )? where_clause?
+                 "{" stmt_sep? ( trait_item ( stmt_sep trait_item )* stmt_sep? )? "}"
+trait_item   ::= DOC_COMMENT* attribute* ( fn_sig fn_body?
+                                         | "type" name ( ":" bounds )?
+                                         | "const" name ":" type ( "=" expression )? )
+impl_decl    ::= "impl" generic_params? ( path_type "for" )? type where_clause?
+                 "{" stmt_sep? ( impl_item ( stmt_sep impl_item )* stmt_sep? )? "}"
+impl_item    ::= DOC_COMMENT* attribute* "pub"? ( fn_decl | type_alias | const_decl )
+type_alias   ::= "type" name generic_params? "=" type ( "where" expr_ns )?   (* refinement alias *)
+const_decl   ::= "const" name ":" type "=" expression
+where_clause ::= "where" list(where_pred, ",")
+
+(* ===== 4.4 Types ===== *)
+type         ::= "dyn" bounds | fn_type | pointer_type | base_type "?"*
+base_type    ::= path_type | tuple_type | array_type
+path_type    ::= path generic_args?
+generic_args ::= "<" list(generic_arg, ",") ">"
+generic_arg  ::= unit_expr | type | const_arg
+const_arg    ::= INT_LIT | "-" INT_LIT | "true" | "false" | "{" expression "}"
+unit_expr    ::= name unit_power ( ( "*" | "/" ) unit_factor )*
+               | name ( ( "*" | "/" ) unit_factor )+
+unit_factor  ::= name unit_power? | "(" unit_expr ")"
+unit_power   ::= "**" "-"? INT_LIT
+tuple_type   ::= "(" ")" | "(" type ")" | "(" type "," list(type, ",")? ")"
+array_type   ::= "[" type ";" expression "]"
+fn_type      ::= "fn" "(" list(type, ",")? ")" ( "->" type )? effects?
+pointer_type ::= "*" ( "const" | "var" ) type
+
+(* ===== 5.1 Blocks and statements ===== *)
+block       ::= "{" stmt_sep? ( stmt ( stmt_sep stmt )* stmt_sep? )? "}"
+stmt        ::= let_stmt | var_stmt | const_decl | assign_stmt | defer_stmt | region_stmt | expr_stmt
+
+let_stmt    ::= attribute* "let" pattern ( ":" type )? "=" expression
+var_stmt    ::= attribute* "var" pattern ( ":" type )? "=" expression
+assign_stmt ::= expression assign_op expression          (* left side must be a place; checked after parsing *)
+assign_op   ::= "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" | "**="
+defer_stmt  ::= "defer" ( block | expression )
+region_stmt ::= "region" name block
+expr_stmt   ::= expression
+
+(* ===== 5.2 Patterns ===== *)
+pattern       ::= "|"? pattern_alt ( "|" pattern_alt )*
+pattern_alt   ::= literal_pat | range_pat | "_" | ".." | pattern_ident
+                | tuple_pat | array_pat | variant_pat | struct_pat
+pattern_ident ::= "var"? name                            (* var: binding is mutable *)
+variant_pat   ::= path "(" list(pattern, ",")? ")"
+struct_pat    ::= path "{" NEWLINE? list(field_pat, brace_sep)? "}"
+field_pat     ::= name ( ":" pattern )? | ".."
+tuple_pat     ::= "(" ")" | "(" pattern ")" | "(" pattern "," list(pattern, ",")? ")"
+array_pat     ::= "[" list(pattern, ",")? "]"
+literal_pat   ::= "-"? INT_LIT | CHAR_LIT | STRING_LIT | BYTE_STRING | "true" | "false"
+range_pat     ::= range_bound ( "..=" range_bound | ".." range_bound? ) | "..=" range_bound
+range_bound   ::= "-"? INT_LIT | CHAR_LIT | path
+
+(* ===== 6.2 Grammar ===== *)
+expression[S]   ::= closure[?S] | range_expr[?S]
+expr_ns         ::= expression[~S]                                (* no struct literal at this position *)
+closure[S]      ::= "async"? closure_params "=>" expression[?S]
+closure_params  ::= name | "(" list(closure_param, ",")? ")"
+closure_param   ::= pattern ( ":" type )?
+
+range_expr[S]   ::= or_expr[?S] ( ( ".." | "..=" ) or_expr[?S]? )? | ( ".." | "..=" ) or_expr[?S]?
+or_expr[S]      ::= and_expr[?S] ( "||" and_expr[?S] )*
+and_expr[S]     ::= cmp_expr[?S] ( "&&" cmp_expr[?S] )*
+cmp_expr[S]     ::= bor_expr[?S] ( cmp_op bor_expr[?S] )?        (* at most one: non-associative *)
+cmp_op          ::= "==" | "!=" | "<" | ">" | "<=" | ">="
+bor_expr[S]     ::= bxor_expr[?S] ( "|" bxor_expr[?S] )*
+bxor_expr[S]    ::= band_expr[?S] ( "^" band_expr[?S] )*
+band_expr[S]    ::= shift_expr[?S] ( "&" shift_expr[?S] )*
+shift_expr[S]   ::= add_expr[?S] ( ( "<<" | ">>" ) add_expr[?S] )*
+add_expr[S]     ::= mul_expr[?S] ( ( "+" | "-" | "+%" | "-%" | "+|" | "-|" ) mul_expr[?S] )*
+mul_expr[S]     ::= cast_expr[?S] ( ( "*" | "/" | "%" | "*%" | "*|" ) cast_expr[?S] )*
+cast_expr[S]    ::= unary_expr[?S] ( "as" type )*
+unary_expr[S]   ::= ( "+" | "-" | "!" | "~" ) unary_expr[?S] | power_expr[?S]
+power_expr[S]   ::= await_expr[?S] ( "**" unary_expr[?S] )?     (* right-assoc *)
+await_expr[S]   ::= "await" head[?S] postfix_nq* "?"* | head[?S] postfix*
+
+head[S]         ::= path_head[?S] | primary
+path_head[S]    ::= path_chain ( [+S] struct_body )?             (* struct literal: only here *)
+path_chain      ::= ( name | "self" | "Self" ) gen_tail? ( "." name gen_tail? )*
+gen_tail        ::= generic_args                                  (* only if followed by ( . or {; rule B *)
+
+postfix         ::= postfix_nq | "?"
+postfix_nq      ::= "." name gen_tail? | "." INT_LIT | call_args | "[" expression[+S] "]"
+call_args       ::= "(" list(call_arg, ",")? ")"
+call_arg        ::= ( name ":" )? ( "&" | "take" )? expression[+S]   (* & = exclusive borrow, take = move *)
+struct_body     ::= "{" NEWLINE? list(field_init, brace_sep)? "}"
+field_init      ::= name ( ":" expression[+S] )? | ".." expression[+S]
+
+primary         ::= literal
+                  | "(" ")" | "(" expression[+S] ")" | "(" expression[+S] "," list(expression[+S], ",")? ")"
+                  | "[" ( list(expression[+S], ",") | expression[+S] ";" expression[+S] )? "]"
+                  | block | "comptime" block | unsafe_block
+                  | if_expr | match_expr | while_expr | loop_expr | for_expr
+                  | "return" expression[+S]? | "break" expression[+S]? | "continue"
+literal         ::= INT_LIT | FLOAT_LIT | CHAR_LIT | STRING_LIT | RAW_STRING | BYTE_STRING | "true" | "false"
+
+if_expr         ::= "if" cond block ( "else" ( if_expr | block ) )?
+cond            ::= expr_ns | "let" pattern "=" expr_ns
+match_expr      ::= "match" expr_ns "{" NEWLINE? list(match_arm, brace_sep)? "}"
+match_arm       ::= pattern ( "if" expr_ns )? "=>" expression[+S]
+while_expr      ::= "while" cond block
+loop_expr       ::= "loop" block
+for_expr        ::= "for" pattern "in" expr_ns ( "with" name call_args )* block
+unsafe_block    ::= "unsafe" "(" "cap" ":" path ( "+" path )* ")" block
+

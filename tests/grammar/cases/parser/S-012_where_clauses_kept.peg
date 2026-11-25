@@ -1,0 +1,17 @@
+//@ id: S-012
+//@ tags: item.where, item.struct, item.enum, item.trait, item.impl
+//@ expect: accept
+//@ note: where-clauses on struct, enum, trait and impl, supertraits, and predicates whose types start with `(`, `[`, `*` and `fn`
+
+struct S<T> where T: A + B {
+    x: T
+}
+enum E<T> where T: C {
+    V
+}
+trait Tr: Base + Other where Self: Sized {
+    fn f(self)
+}
+impl<T> Tr for S<T> where T: A, (T, T): D, [T; 2]: F, *const T: G, fn(T): H {
+    fn f(self) = 1
+}

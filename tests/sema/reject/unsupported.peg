@@ -1,0 +1,20 @@
+// Valid syntax whose semantics are not implemented yet: every case is
+// rejected with a U diagnostic, never silently accepted.
+
+async fn fetch() -> i32 = 1 // error: U004
+comptime fn table() -> i32 = 1 // error: U004
+
+fn dynamic(x: dyn Shape) {} // error: U001
+fn units(v: f64<m/s>) {} // error: U002
+type Small = u8 where self < 10 // error: U006
+
+trait Shape {}
+
+fn exprs(name: str) {
+    let s = "hello {name}" // error: U010
+    let r = 0..10 // error: U013
+    let c = comptime { 1 } // error: U012
+    let xs = [1, 2, 3]
+    let sl = xs[0..2] // error: U009
+    let ctor = Some // error: U008
+}

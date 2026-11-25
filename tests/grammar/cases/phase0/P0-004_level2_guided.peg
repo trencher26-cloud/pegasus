@@ -1,0 +1,12 @@
+//@ id: P0-004
+//@ tags: phase0, attribute, attribute.args
+//@ expect: accept
+
+@parallel(deterministic)
+@precision(contract)
+fn norm2(data: Span<f32>) -> f32 = data.map(x => x * x).sum()
+
+fn setup() {
+    @layout(soa) let particles: Vec<Particle> = load()
+    run(particles)
+}

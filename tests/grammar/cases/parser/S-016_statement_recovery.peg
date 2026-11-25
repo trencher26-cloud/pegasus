@@ -1,0 +1,12 @@
+//@ id: S-016
+//@ tags: recovery.stmt
+//@ expect: reject
+//@ error: P001 offset=298 near="= 2"
+//@ stmts: 3
+//@ note: statement recovery: the bad statement is skipped to the next NEWLINE and becomes an error statement, so the function keeps all three statements
+
+fn t() {
+    let a = 1
+    let b = = 2
+    let c = 3
+}

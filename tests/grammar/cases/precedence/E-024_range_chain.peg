@@ -1,0 +1,6 @@
+//@ id: E-024
+//@ tags: precedence, expr.range
+//@ expect: reject
+//@ error: P003 offset=118 near="..c"
+
+fn t() = a..b..c

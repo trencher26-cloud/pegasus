@@ -1,0 +1,16 @@
+// Borrow provenance and function values (PIR0.3).
+
+struct R {
+    id: i32
+}
+
+fn get(r: R) -> in R = r
+
+fn returns_local(r: R) -> in R {
+    let y = R { id: 1 }
+    y // error: O005
+}
+
+fn forwards_temporary(r: R) -> in R = get(R { id: 1 }) // error: O005
+
+fn moves_borrowed_result(r: R) -> R = get(r) // error: O002

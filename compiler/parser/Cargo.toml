@@ -1,0 +1,10 @@
+[package]
+name = "pegasus-parser"
+description = "Pegasus parser and AST (grammar v0.1.2-draft, sections 4-8)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+pegasus-lexer = { path = "../lexer" }

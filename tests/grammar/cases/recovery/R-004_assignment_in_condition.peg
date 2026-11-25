@@ -1,0 +1,8 @@
+//@ id: R-004
+//@ tags: recovery.hint
+//@ expect: reject
+//@ error: P004 offset=114 near="= y"
+
+fn t() {
+    if x = y { hit() }
+}

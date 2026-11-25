@@ -1,0 +1,8 @@
+//@ id: L-012
+//@ tags: lexical.comment
+//@ expect: accept
+
+//
+//// four slashes is an ordinary comment
+// ordinary
+fn t() = 1

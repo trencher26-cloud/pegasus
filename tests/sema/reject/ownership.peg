@@ -1,0 +1,90 @@
+// PURM v0.1 errors (spec/purm.md): one case per rule, plus the boundaries.
+
+struct R {
+    id: i32
+}
+
+struct Pair2 {
+    a: R
+    b: R
+}
+
+fn take(r: own R) {}
+fn look(r: R) {}
+fn modify(r: inout R, s: R) {}
+
+fn use_after_move() {
+    let r = R { id: 1 }
+    take(r)
+    look(r) // error: O001
+}
+
+fn conditional_move(c: bool) {
+    let r = R { id: 1 }
+    if c {
+        take(r)
+    }
+    look(r) // error: O001
+}
+
+fn move_in_loop() {
+    let r = R { id: 1 }
+    for i in 0..3 {
+        take(r) // error: O001
+    }
+}
+
+fn out_of_borrow(r: R) -> R = r // error: O002
+
+fn exclusivity() {
+    var r = R { id: 1 }
+    modify(&r, r) // error: O003
+}
+
+fn element_move(xs: own [R; 2]) -> R = xs[0] // error: O004
+
+fn borrowed_return(x: i32) -> in i32 = 5 // error: O005
+
+fn capture_move() {
+    let r = R { id: 1 }
+    let f = () => take(r) // error: O008
+}
+
+struct HoldsR {
+    r: R
+}
+
+impl Copy for HoldsR {} // error: O010
+
+fn repeat_noncopy() {
+    let xs = [R { id: 1 }; 2] // error: O012
+}
+
+fn defer_move() {
+    let r = R { id: 1 }
+    defer { take(r) } // error: O013
+}
+
+fn partial_then_part() {
+    let p = Pair2 { a: R { id: 1 }, b: R { id: 2 } }
+    take(p.a)
+    take(p.b)
+    look(p.a) // error: O001
+}
+
+fn partial_then_whole() {
+    let p = Pair2 { a: R { id: 1 }, b: R { id: 2 } }
+    take(p.a)
+    let q = p // error: O001
+}
+
+fn while_move(n: i32) {
+    let r = R { id: 1 }
+    var i = 0
+    while i < n {
+        if i == 2 {
+            take(r) // error: O001
+        }
+        i += 1
+    }
+}

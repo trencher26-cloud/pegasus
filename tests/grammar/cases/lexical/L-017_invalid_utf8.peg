@@ -1,0 +1,8 @@
+//@ id: L-017
+//@ tags: lexical.utf8
+//@ expect: reject
+//@ error: L001 offset=114 near="\xff"
+
+fn t() {
+    let aÿ = 1
+}

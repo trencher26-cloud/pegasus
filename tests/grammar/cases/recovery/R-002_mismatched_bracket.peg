@@ -1,0 +1,8 @@
+//@ id: R-002
+//@ tags: recovery, recovery.bracket
+//@ expect: reject
+//@ error: P010 offset=133 near="]"
+
+fn t() {
+    let p = (1, 2]
+}

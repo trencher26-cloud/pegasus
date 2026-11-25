@@ -1,0 +1,7 @@
+//@ id: P0-019
+//@ tags: phase0, generic.const
+//@ expect: accept
+
+fn locks() {
+    let m: Mutex<Table, 3> = Mutex.new(Table.empty())
+}

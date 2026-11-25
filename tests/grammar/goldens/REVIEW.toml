@@ -1,0 +1,30 @@
+# Review state of the candidate golden files, one entry per corpus group.
+# Written by tools/goldens.py; edit only through its commands.
+#   status = "unreviewed" | "frozen"
+# A frozen group binds SHA-256 hashes for every .peg source and every .tokens/.filtered
+# candidate; `goldens.py check` (CTest, CI) fails if any bytes or case inventories change.
+history = []
+
+[groups.phase0]
+status = "unreviewed"
+
+[groups.lexical]
+status = "unreviewed"
+
+[groups.newline]
+status = "unreviewed"
+
+[groups.precedence]
+status = "unreviewed"
+
+[groups.ambiguity]
+status = "unreviewed"
+
+[groups.items]
+status = "unreviewed"
+
+[groups.recovery]
+status = "unreviewed"
+
+[groups.parser]
+status = "unreviewed"

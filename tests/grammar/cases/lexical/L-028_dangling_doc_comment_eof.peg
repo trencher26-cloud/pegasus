@@ -1,0 +1,8 @@
+//@ id: L-028
+//@ tags: lexical.doc_comment
+//@ expect: reject
+//@ error: P008 offset=123 near="/// trailing"
+
+fn t() = 1
+
+/// trailing doc with nothing after it

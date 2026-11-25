@@ -1,0 +1,7 @@
+//@ id: N-002
+//@ tags: newline.rule2
+//@ expect: accept
+//@ shape: (+ a b)
+
+fn t() = a +
+    b

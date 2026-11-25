@@ -1,0 +1,8 @@
+//@ id: E-025
+//@ tags: precedence, stmt.assign
+//@ expect: reject
+//@ error: P015 offset=125 near="= c"
+
+fn t() {
+    a = b = c
+}

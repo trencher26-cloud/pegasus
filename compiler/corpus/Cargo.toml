@@ -1,0 +1,15 @@
+[package]
+name = "pegasus-corpus"
+description = "Runs the grammar conformance corpus against the Pegasus lexer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "pgcorpus"
+path = "src/main.rs"
+
+[dependencies]
+pegasus-lexer = { path = "../lexer" }
+pegasus-parser = { path = "../parser" }

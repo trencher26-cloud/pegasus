@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = ["compiler/lexer", "compiler/parser", "compiler/corpus", "compiler/sema", "compiler/pir", "compiler/driver"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+rust-version = "1.97"  # minimum supported; the toolchain pin (rust-toolchain.toml) is 1.97.1
+
+[workspace.dependencies]
+unicode-ident = "=1.0.27"
+unicode-normalization = "=0.1.26"

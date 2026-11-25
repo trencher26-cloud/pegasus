@@ -1,0 +1,19 @@
+//@ id: P0-001
+//@ tags: phase0, item.struct, item.fn, expr.power, expr.try, string.interp
+//@ expect: accept
+
+use std.io
+
+struct Point { x: f64, y: f64 }
+
+fn dist(a: Point, b: Point) -> f64 {
+    ((a.x - b.x)**2 + (a.y - b.y)**2).sqrt()
+}
+
+fn main() -> Result<(), io.Error> {
+    let pts = [Point{x: 0, y: 0}, Point{x: 3, y: 4}]
+    let d = dist(pts[0], pts[1])
+    io.print("distance = {d}")
+    let text = io.read_file("data.txt")?
+    for line in text.lines() { io.print(line) }
+}

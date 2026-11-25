@@ -1,0 +1,5 @@
+// Fixture for backend/tests/abi_test.cpp: the module's only comparison is
+// `==` on booleans; the test rewrites it into `<` (which the verifier would
+// reject) to check that the backend fails closed.
+fn eq(a: bool, b: bool) -> bool = a == b
+fn main() -> bool = eq(false, true)

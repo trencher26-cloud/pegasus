@@ -1,0 +1,8 @@
+//@ id: I-022
+//@ tags: stmt.let
+//@ expect: reject
+//@ error: P011 offset=108 near="mut"
+
+fn t() {
+    let mut x = 1
+}

@@ -1,0 +1,13 @@
+//@ id: P0-008
+//@ tags: phase0, contract.requires, contract.ensures, fn.comptime, type.array
+//@ expect: accept
+
+fn sqrt_checked(x: f64) -> f64 requires x >= 0.0 ensures result >= 0.0 {
+    x.sqrt()
+}
+
+comptime fn table() -> [u8; 256] {
+    [0; 256]
+}
+
+const CRC: [u8; 256] = table()

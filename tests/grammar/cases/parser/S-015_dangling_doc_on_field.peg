@@ -1,0 +1,10 @@
+//@ id: S-015
+//@ tags: lexical.doc, item.struct, recovery.item
+//@ expect: reject
+//@ error: P008 offset=230 near="/// dangling"
+//@ note: a doc comment before the closing brace of a struct is dangling
+
+struct S {
+    x: i32
+    /// dangling
+}

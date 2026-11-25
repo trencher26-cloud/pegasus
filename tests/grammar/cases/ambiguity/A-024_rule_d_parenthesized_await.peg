@@ -1,0 +1,6 @@
+//@ id: A-024
+//@ tags: ambiguity.D, expr.await
+//@ expect: accept
+//@ shape: (mcall (await (call f)) g)
+
+fn t() = (await f()).g()

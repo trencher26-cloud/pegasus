@@ -1,0 +1,11 @@
+//@ id: N-015
+//@ tags: newline.semicolon, newline.rule5
+//@ expect: accept
+//@ stmts: 2
+
+fn t() {
+    let a = 1;;
+
+
+    let b = 2
+}

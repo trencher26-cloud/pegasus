@@ -1,0 +1,9 @@
+//@ id: N-022
+//@ tags: newline.header, newline.rule4, lexical.split
+//@ expect: reject
+//@ error: P001 offset=329 near="where"
+//@ nl-kept: offset=328 near="\nwhere"
+//@ note: pair of N-023: the `=` inside the `>=` token ends the header, so `where` starts a new item and is rejected exactly as in the spaced form
+
+type A<T>=Box
+where T: Copy

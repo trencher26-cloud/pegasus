@@ -1,0 +1,5 @@
+//@ id: P0-022
+//@ tags: phase0, fn.expr_body
+//@ expect: accept
+
+fn square(x: i32) -> i32 = x * x

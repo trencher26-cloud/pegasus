@@ -1,0 +1,6 @@
+//@ id: A-011
+//@ tags: ambiguity.B, generic.call
+//@ expect: accept
+//@ shape: (gmcall obj get (T) i)
+
+fn t() = obj.get<T>(i)

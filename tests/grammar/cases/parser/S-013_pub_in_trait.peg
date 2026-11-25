@@ -1,0 +1,10 @@
+//@ id: S-013
+//@ tags: item.trait, item.context
+//@ expect: reject
+//@ error: P001 offset=247 near="pub"
+//@ note: trait_item has no `pub` (only impl_item does); fn prefixes are part of fn_sig and are allowed
+
+trait T {
+    async fn ok(self)
+    pub fn f(self)
+}

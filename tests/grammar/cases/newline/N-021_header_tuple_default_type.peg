@@ -1,0 +1,13 @@
+//@ id: N-021
+//@ tags: newline.header, newline.rule4, generic.param
+//@ expect: accept
+//@ stmts: 2
+//@ nl-kept: offset=377 near="\n    { y }"
+//@ nl-dropped: offset=369 near="\n{"
+//@ note: regression: a '(' inside the generic angles must not start the parameter list, so the header ends at '{' and the NEWLINE before '{ y }' survives
+
+fn f<T = (i32, i32)>(x: T) -> T
+{
+    x
+    { y }
+}

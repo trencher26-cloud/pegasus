@@ -1,0 +1,6 @@
+//@ id: A-015
+//@ tags: ambiguity.C, closure
+//@ expect: accept
+//@ shape: (mcall xs map (closure (x) (* x 2)))
+
+fn t() = xs.map((x: i32) => x * 2)

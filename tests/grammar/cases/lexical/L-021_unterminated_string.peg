@@ -1,0 +1,9 @@
+//@ id: L-021
+//@ tags: lexical.string
+//@ expect: reject
+//@ error: L005 offset=120 near="\"abc"
+
+fn t() {
+    let s = "abc
+    let y = 2
+}

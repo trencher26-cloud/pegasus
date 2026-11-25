@@ -1,0 +1,8 @@
+//@ id: S-014
+//@ tags: rule.E, item.impl
+//@ expect: reject
+//@ error: P001 offset=216 near="(A, B)"
+//@ note: rule E: the type before `for` must be a path_type, so a tuple type is rejected at its first token
+
+impl (A, B) for Y {
+}

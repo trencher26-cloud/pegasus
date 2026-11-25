@@ -1,0 +1,5 @@
+//@ id: P0-015
+//@ tags: phase0, item.type_alias, contract.refinement
+//@ expect: accept
+
+type Index<N> = usize where self < N

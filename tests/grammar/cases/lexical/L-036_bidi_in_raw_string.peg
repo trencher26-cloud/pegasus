@@ -1,0 +1,6 @@
+//@ id: L-036
+//@ tags: lexical.bidi, lexical.raw_string
+//@ expect: accept
+//@ warning: W001 offset=141 near="\u{2066}"
+
+const S: str = r#"a⁦b"#

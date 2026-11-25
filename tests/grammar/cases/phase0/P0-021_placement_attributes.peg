@@ -1,0 +1,11 @@
+//@ id: P0-021
+//@ tags: phase0, attribute.args
+//@ expect: accept
+
+@prefer(gpu)
+@budget(latency: ms(2), memory: mib(64))
+@simd(width: auto)
+fn infer(x: Span<f32>) -> f32 = x.sum()
+
+@target(cpu.avx2)
+fn fast(x: Span<f32>) -> f32 = x.sum()

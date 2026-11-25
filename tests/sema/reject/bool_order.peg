@@ -1,0 +1,8 @@
+// `bool` has `==` and `!=` but no ordering (spec/semantics.md §6).
+
+fn lt(a: bool, b: bool) -> bool = a < b // error: T003
+fn le(a: bool, b: bool) -> bool = a <= b // error: T003
+fn gt(a: bool, b: bool) -> bool = a > b // error: T003
+fn ge(a: bool, b: bool) -> bool = a >= b // error: T003
+fn eq(a: bool, b: bool) -> bool = a == b
+fn ne(a: bool, b: bool) -> bool = a != b

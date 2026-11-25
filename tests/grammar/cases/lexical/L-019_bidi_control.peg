@@ -1,0 +1,8 @@
+//@ id: L-019
+//@ tags: lexical.bidi
+//@ expect: reject
+//@ error: L003 offset=118 near="\u{202E}"
+
+fn t() {
+    let a‮ = 1
+}

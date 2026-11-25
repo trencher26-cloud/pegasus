@@ -1,0 +1,11 @@
+//@ id: S-017
+//@ tags: recovery.item, item.impl
+//@ expect: reject
+//@ error: P001 offset=307 near="fn c"
+//@ note: item recovery inside an impl body resumes at the next line that starts an item; the impl and the file survive (checked by the parser tests)
+
+impl X {
+    fn a(self) = 1
+    fn b(self) =
+    fn c(self) = 3
+}

@@ -1,0 +1,7 @@
+//@ id: N-012
+//@ tags: newline.semicolon, newline.rule1
+//@ expect: accept
+//@ shape: (repeat 0 4)
+
+fn t() = [0;
+    4]

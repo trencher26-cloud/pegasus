@@ -1,0 +1,5 @@
+//@ trap: attempt to add with overflow
+fn main() -> u8 {
+    let x: u8 = 200
+    x + 100
+}

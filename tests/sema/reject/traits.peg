@@ -1,0 +1,69 @@
+// Trait and impl errors.
+
+trait Shape {
+    fn area(self) -> f64
+    fn name(self) -> str
+}
+
+struct Sq {
+    s: f64
+}
+
+impl Shape for Sq { // error: T034
+    fn area(self) -> f64 = self.s * self.s
+}
+
+struct Ci {}
+
+impl Shape for Ci {
+    fn area(self) -> i32 = 1 // error: T035
+    fn name(self) -> str = "ci"
+    fn extra(self) {} // error: T033
+}
+
+trait Marker {}
+impl Marker for Sq {}
+impl Marker for Sq {} // error: T031
+
+fn needs<T: Shape>(t: T) -> f64 = t.area()
+
+fn call() {
+    let x = needs(5) // error: T064
+}
+
+struct Loop { // error: T020
+    next: Loop
+}
+
+impl i32 { // error: T030
+    fn nope(self) {}
+}
+
+// Every member's contract is checked, not only its presence (S0.2).
+trait Eq2 {}
+impl Eq2 for i32 {}
+
+trait Container {
+    type Item: Eq2
+    const SIZE: usize
+    fn get(self) -> in i32
+    fn put<T: Eq2>(self, t: T)
+}
+
+struct Box1 {}
+
+impl Container for Box1 {
+    type Item = bool // error: T037
+    const SIZE: u32 = 1 // error: T036
+    fn get(self) -> i32 = 1 // error: T035
+    fn put<T: Eq2 + Marker>(self, t: T) {} // error: T035
+}
+
+struct Box2 {}
+
+impl Container for Box2 {
+    type Item = i32
+    const SIZE: usize = 1
+    fn get(self) -> in i32 = 1
+    fn put<T: Eq2>(self, t: T) {}
+}

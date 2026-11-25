@@ -1,0 +1,10 @@
+//@ id: I-004
+//@ tags: item.impl, ambiguity.E
+//@ expect: accept
+
+impl<T> Stack<T> where T: Copy {
+    const LIMIT: usize = 64
+    type Elem = T
+    pub fn push(inout self, x: own T) { self.items.push(take x) }
+    fn peek(self) -> in T { self.items[self.items.len - 1] }
+}

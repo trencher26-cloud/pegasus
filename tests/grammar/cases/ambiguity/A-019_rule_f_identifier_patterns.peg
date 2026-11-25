@@ -1,0 +1,9 @@
+//@ id: A-019
+//@ tags: ambiguity.F, pattern.ident
+//@ expect: accept
+//@ note: None is resolved as a unit variant by the resolver, not the parser
+
+fn t(v: Option<i32>) -> i32 = match v {
+    None => 0,
+    Some(n) => n,
+}

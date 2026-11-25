@@ -1,0 +1,12 @@
+//@ id: S-001
+//@ tags: newline.rule2a, generic.args
+//@ expect: accept
+//@ stmts: 4
+//@ note: rule 2a: a NEWLINE after a line-ending generic closer (`>`, or the last `>` of a split `>>`) separates statements; filter rule 2 alone would merge them
+
+fn t() {
+    let v: Vec<i32> = make()
+    let w: Map<K, Vec<V>> = make()
+    let n = v.len() as Vec<u8>
+    w
+}

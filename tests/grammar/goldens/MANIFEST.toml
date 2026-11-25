@@ -1,0 +1,23 @@
+# Provenance template for future independent-reference and parser/tree goldens.
+# Lexer-stage candidate review and freezing is tracked separately in REVIEW.toml.
+# Populate this manifest when the generated reference parser and AST goldens exist.
+
+corpus_version  = "0.1.4"
+grammar_version = "0.1.1-draft"
+
+[generator]
+name     = ""   # e.g. "pegasus-refparser (generated from spec/pegasus.ebnf)"
+revision = ""   # exact commit or build hash
+date     = ""   # ISO 8601
+
+[review]
+reviewed_by   = []   # names
+reviewed_date = ""
+scope         = ""   # e.g. "all cases; full inspection of ambiguity, precedence, newline, recovery"
+
+# One entry per bless run, newest first.
+# [[history]]
+# date = ""
+# generator_revision = ""
+# reason = ""
+# cases_changed = []

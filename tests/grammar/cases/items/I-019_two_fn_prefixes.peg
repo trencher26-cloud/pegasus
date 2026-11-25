@@ -1,0 +1,6 @@
+//@ id: I-019
+//@ tags: fn.async, fn.kernel
+//@ expect: reject
+//@ error: P007 offset=111 near="kernel"
+
+async kernel fn k() {}

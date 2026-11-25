@@ -1,0 +1,11 @@
+//@ id: A-022
+//@ tags: ambiguity.H, stmt.region
+//@ expect: accept
+//@ stmts: 4
+
+fn t() {
+    region r { use_it(r) }
+    let region = 3
+    region + 1
+    region(5)
+}

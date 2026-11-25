@@ -1,0 +1,3 @@
+mod absent // error: R013
+
+fn main() {}

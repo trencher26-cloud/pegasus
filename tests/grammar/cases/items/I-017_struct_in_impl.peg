@@ -1,0 +1,8 @@
+//@ id: I-017
+//@ tags: item.impl
+//@ expect: reject
+//@ error: P012 offset=118 near="struct Inner"
+
+impl Outer {
+    struct Inner { x: i32 }
+}

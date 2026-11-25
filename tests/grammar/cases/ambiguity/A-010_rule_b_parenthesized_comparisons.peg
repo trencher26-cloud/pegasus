@@ -1,0 +1,6 @@
+//@ id: A-010
+//@ tags: ambiguity.B, expr.cmp
+//@ expect: accept
+//@ shape: (call f (< a b) (> c d))
+
+fn t() = f((a < b), c > (d))

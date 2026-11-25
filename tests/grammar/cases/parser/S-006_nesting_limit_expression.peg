@@ -1,0 +1,7 @@
+//@ id: S-006
+//@ tags: recovery.limit, expr.paren
+//@ expect: reject
+//@ error: P018 offset=493 near="("#130
+//@ note: nesting limit: the body expression is level 1 and each parenthesis adds one, so the expression inside the 128th parenthesis would be level 129; P018 is reported at its first token, the 129th parenthesis (#130 counts the one in fn t())
+
+fn t() = ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((0))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))

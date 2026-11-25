@@ -1,0 +1,50 @@
+// Type errors.
+
+struct P {
+    x: i32
+    y: i32
+}
+
+fn takes(v: inout i32) {}
+fn owns(v: own i32) {}
+
+fn errors() {
+    let a: i32 = "text" // error: T001
+    let b = 1i32 + 1i64 // error: T002
+    let c = true + false // error: T003
+    let d = -5u8 // error: T003
+    let e = !5 // error: T092
+    let p = P { x: 1 } // error: T046
+    let q = P { x: 1, y: 2, z: 3 } // error: T041
+    let r = p.nope // error: T041
+    let s = 300u8 // error: T091
+    let t: i8 = -129 // error: T091
+    let u = 1.5f32 as i32 // error: T090
+    let v = 70000u32 as u16 // error: T090
+    let w = 1 << -1 // error: T003
+    let x = 2 ** 3i32 // error: T003
+    takes(5) // error: T062
+    var m = 1
+    takes(&m)
+    owns(&m) // error: T063
+    let immut = 1
+    immut = 2 // error: T060
+    takes(&immut) // error: T060
+    let f = errors(1) // error: T058
+    let g = P { x: 1, y: 2 } == P { x: 1, y: 2 } // error: T003
+    break // error: T070
+}
+
+fn ret() -> i32 {
+    return // error: T001
+}
+
+fn try_wrong() -> i32 {
+    let x: i32? = None
+    x? // error: T080
+}
+
+fn not_callable() {
+    let n = 5
+    n(1) // error: T059
+}

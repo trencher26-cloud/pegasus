@@ -1,0 +1,5 @@
+//@ id: L-009
+//@ tags: lexical.byte_string
+//@ expect: accept
+
+const MAGIC: Span<u8> = b"PEG\x01\n"

@@ -1,0 +1,3 @@
+//@ trap: negate with overflow
+fn n(x: i8) -> i8 = -x
+fn main() -> i8 = n(-128)

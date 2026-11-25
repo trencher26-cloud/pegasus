@@ -1,0 +1,6 @@
+//@ id: A-005
+//@ tags: ambiguity.B, generic.call
+//@ expect: accept
+//@ shape: (gcall parse (i32) s)
+
+fn t() = parse<i32>(s)

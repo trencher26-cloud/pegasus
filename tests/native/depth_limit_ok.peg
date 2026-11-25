@@ -1,0 +1,4 @@
+//@ result: 99998
+// main plus 99 999 nested frames: exactly the call-depth limit (100 000).
+fn down(n: u32) -> u32 = if n == 0 { 0 } else { down(n - 1) + 1 }
+fn main() -> u32 = down(99998)

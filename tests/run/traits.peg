@@ -1,0 +1,49 @@
+//@ result: (78.53975, 6.0, "circle", "shape", 15, Pair<i64> { a: 4, b: 2 }, 42)
+// Trait dispatch through bounds, default methods, generic
+// monomorphization, closures with captures, higher-order functions.
+
+trait Shape {
+    fn area(self) -> f64
+    fn name(self) -> str = "shape"
+}
+
+struct Circle {
+    r: f64
+}
+
+struct Rect {
+    w: f64
+    h: f64
+}
+
+impl Shape for Circle {
+    fn area(self) -> f64 = 3.14159 * self.r * self.r
+    fn name(self) -> str = "circle"
+}
+
+impl Shape for Rect {
+    fn area(self) -> f64 = self.w * self.h
+}
+
+fn area_of<S: Shape>(s: S) -> f64 = s.area()
+fn name_of<S: Shape>(s: S) -> str = s.name()
+
+struct Pair<T> {
+    a: T
+    b: T
+}
+
+impl<T> Pair<T> {
+    fn swap(own self) -> Pair<T> = Pair { a: self.b, b: self.a }
+    fn map<U>(own self, f: fn(T) -> U) -> Pair<U> = Pair { a: f(self.a), b: f(self.b) }
+}
+
+fn apply_twice(f: fn(i32) -> i32, x: i32) -> i32 = f(f(x))
+
+fn main() -> (f64, f64, str, str, i32, Pair<i64>, i32) {
+    let base = 5
+    let add = (x: i32) => x + base
+    let p = Pair { a: 1, b: 2 }.swap().map((x) => x as i64 * 2)
+    let total = apply_twice(add, 5)
+    (area_of(Circle { r: 5.0 }), area_of(Rect { w: 2.0, h: 3.0 }), name_of(Circle { r: 1.0 }), name_of(Rect { w: 1.0, h: 1.0 }), total, p, apply_twice((x) => x * 2 + 0, 10) + 2)
+}

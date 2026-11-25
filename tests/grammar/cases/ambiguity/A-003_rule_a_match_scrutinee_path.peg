@@ -1,0 +1,8 @@
+//@ id: A-003
+//@ tags: ambiguity.A, expr.match
+//@ expect: accept
+
+fn t() -> i32 = match cfg.mode {
+    Fast => 1,
+    Slow => 2,
+}

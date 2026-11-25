@@ -1,0 +1,9 @@
+//@ id: S-004
+//@ tags: newline.rule2a, newline.rule2, expr.binary
+//@ expect: accept
+//@ shape: (>> a (+ b (* c d)))
+//@ note: rule 2a leaves `>>` and `*` alone when they are operators: both lines continue
+
+fn t() = a >>
+    b + c *
+    d

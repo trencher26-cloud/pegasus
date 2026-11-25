@@ -1,0 +1,43 @@
+//@ result: 13
+//@ drops: consume:r, main:d, main:t, main:t, early:k, sink:r, main:p (partial), main:c, main:a
+// Deterministic destruction (spec/purm.md §5): reverse declaration order at
+// scope exit; moved values are not destroyed; `own` parameters are destroyed
+// by the callee; every loop iteration and early return destroys its locals.
+
+struct R {
+    id: i32
+}
+
+struct Pair2 {
+    a: R
+    b: R
+}
+
+fn consume(r: own R) -> i32 = r.id
+
+fn early(n: i32) -> i32 {
+    let k = R { id: n }
+    if n > 0 {
+        return n
+    }
+    0
+}
+
+fn sink(r: own R) -> i32 = 0
+
+fn main() -> i32 {
+    let a = R { id: 1 }
+    let b = R { id: 2 }
+    let c = R { id: 3 }
+    let x = consume(b)
+    {
+        let d = R { id: 4 }
+    }
+    for i in 0..2 {
+        let t = R { id: i }
+    }
+    let y = early(5)
+    let p = Pair2 { a: R { id: 6 }, b: R { id: 7 } }
+    let z = p.a.id + sink(p.b)
+    x + y + z
+}

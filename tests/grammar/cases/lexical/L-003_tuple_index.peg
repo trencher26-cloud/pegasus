@@ -1,0 +1,6 @@
+//@ id: L-003
+//@ tags: lexical.int, expr.field
+//@ expect: accept
+//@ shape: (field (field p 0) 1)
+
+fn t() = p.0.1

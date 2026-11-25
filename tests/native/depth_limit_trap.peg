@@ -1,0 +1,4 @@
+//@ trap: stack overflow (call depth limit reached)
+// One frame beyond the limit.
+fn down(n: u32) -> u32 = if n == 0 { 0 } else { down(n - 1) + 1 }
+fn main() -> u32 = down(99999)

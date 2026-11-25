@@ -1,0 +1,7 @@
+//@ id: S-011
+//@ tags: rule.B, generic.args
+//@ expect: reject
+//@ error: P001 offset=316 near=","#1
+//@ note: rule B accepts only well-formed generic_args: an empty argument makes `<` a comparison, so the error is the missing operand at the first comma (read as generic, it would be at the second)
+
+fn t() = f < a , , b > (x)

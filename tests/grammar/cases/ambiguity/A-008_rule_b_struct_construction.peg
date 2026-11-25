@@ -1,0 +1,6 @@
+//@ id: A-008
+//@ tags: ambiguity.B, expr.struct
+//@ expect: accept
+//@ shape: (struct (gpath Pair (i32 i32)) (a 1) (b 2))
+
+fn t() = Pair<i32, i32> { a: 1, b: 2 }

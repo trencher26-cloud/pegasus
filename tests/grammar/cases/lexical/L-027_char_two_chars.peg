@@ -1,0 +1,6 @@
+//@ id: L-027
+//@ tags: lexical.char
+//@ expect: reject
+//@ error: L011 offset=112 near="'ab'"
+
+const A: char = 'ab'

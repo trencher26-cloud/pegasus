@@ -1,0 +1,10 @@
+//@ id: I-003
+//@ tags: item.trait
+//@ expect: accept
+
+trait Container: Sized + Send {
+    type Item
+    const CAPACITY: usize = 16
+    fn len(self) -> usize
+    fn is_empty(self) -> bool = self.len() == 0
+}

@@ -1,0 +1,7 @@
+//@ id: L-035
+//@ tags: lexical.bidi, lexical.string
+//@ expect: accept
+//@ warning: W001 offset=197 near="\u{202E}"
+//@ note: valid program; the warning must not become an error
+
+const S: str = "a‮b"

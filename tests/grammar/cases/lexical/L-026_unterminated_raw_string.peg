@@ -1,0 +1,7 @@
+//@ id: L-026
+//@ tags: lexical.raw_string
+//@ expect: reject
+//@ error: L010 offset=122 near="r#\"never"
+
+const A: str = r#"never closed
+fn t() = 1

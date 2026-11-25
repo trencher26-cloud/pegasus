@@ -1,0 +1,9 @@
+//@ id: N-013
+//@ tags: newline.consequence, expr.cast, ambiguity.I
+//@ expect: reject
+//@ error: P001 offset=156 near="as i64"
+
+fn t() {
+    let y = x
+    as i64
+}

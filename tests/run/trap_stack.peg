@@ -1,0 +1,3 @@
+//@ trap: stack overflow
+fn forever(n: u64) -> u64 = forever(n + 1)
+fn main() -> u64 = forever(0)

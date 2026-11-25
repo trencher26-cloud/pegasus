@@ -1,0 +1,9 @@
+//@ id: P0-005
+//@ tags: phase0, for.with, contract.requires, generic.call
+//@ expect: accept
+
+fn axpy(a: f32, x: Span<f32>, y: inout Span<f32>) requires x.len == y.len {
+    for (xv, yv) in simd.chunks<f32x8>(x, &y) with tail(masked) {
+        yv = a * xv + yv
+    }
+}

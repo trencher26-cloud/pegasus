@@ -1,0 +1,9 @@
+//@ id: N-008
+//@ tags: newline.rule2, type.generic
+//@ expect: accept
+//@ stmts: 1
+
+fn t() {
+    let v: Vec<
+        i32> = make()
+}

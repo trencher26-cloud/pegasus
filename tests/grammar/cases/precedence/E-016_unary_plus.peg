@@ -1,0 +1,6 @@
+//@ id: E-016
+//@ tags: precedence, expr.unary_plus
+//@ expect: accept
+//@ shape: (* (pos a) b)
+
+fn t() = +a * b

@@ -1,0 +1,12 @@
+//@ id: N-020
+//@ tags: newline.header, generic.param
+//@ expect: accept
+//@ nl-dropped: offset=298 near="\n    where"
+//@ nl-dropped: offset=316 near="\n{"
+//@ note: '=' inside the generic parameter list does not end the header, so 'where' on the next line still attaches
+
+fn f<T = i32>(x: T) -> T
+    where T: Copy
+{
+    x
+}

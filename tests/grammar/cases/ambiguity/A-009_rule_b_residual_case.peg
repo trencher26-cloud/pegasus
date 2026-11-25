@@ -1,0 +1,7 @@
+//@ id: A-009
+//@ tags: ambiguity.B
+//@ expect: accept
+//@ shape: (call f (gcall a (b c) d))
+//@ note: generics win; see grammar section 7
+
+fn t() = f(a < b, c > (d))

@@ -1,0 +1,8 @@
+//@ id: R-003
+//@ tags: recovery.hint
+//@ expect: reject
+//@ error: P017 offset=121 near="go()"
+
+fn t() {
+    if (ready) go()
+}

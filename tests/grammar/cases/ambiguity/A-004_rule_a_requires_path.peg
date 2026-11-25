@@ -1,0 +1,5 @@
+//@ id: A-004
+//@ tags: ambiguity.A, contract.requires
+//@ expect: accept
+
+fn t(x: i32) -> i32 requires x > LIMIT { x }

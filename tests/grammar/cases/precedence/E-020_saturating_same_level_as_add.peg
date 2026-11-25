@@ -1,0 +1,6 @@
+//@ id: E-020
+//@ tags: precedence, expr.saturating
+//@ expect: accept
+//@ shape: (- (+| a b) c)
+
+fn t() = a +| b - c

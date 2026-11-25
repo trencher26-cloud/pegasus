@@ -1,0 +1,7 @@
+//@ id: L-018
+//@ tags: lexical.crlf
+//@ expect: reject
+//@ error: L002 offset=102 near="\r"
+
+fn t() {    let a = 1
+}

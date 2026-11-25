@@ -1,0 +1,6 @@
+//@ id: E-018
+//@ tags: precedence, expr.power, expr.cast
+//@ expect: accept
+//@ shape: (cast (** a b) f64)
+
+fn t() = a ** b as f64

@@ -1,0 +1,6 @@
+//@ id: E-011
+//@ tags: precedence, expr.range
+//@ expect: accept
+//@ shape: (range a (+ b 1))
+
+fn t() = a..b + 1

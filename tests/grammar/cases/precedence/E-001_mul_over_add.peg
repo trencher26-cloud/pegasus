@@ -1,0 +1,6 @@
+//@ id: E-001
+//@ tags: precedence, expr.arith
+//@ expect: accept
+//@ shape: (+ a (* b c))
+
+fn t() = a + b * c

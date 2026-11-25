@@ -1,0 +1,21 @@
+//@ result: (7, -2, 255, 0, 127, 128, 1024, -4, 3, 6, 4294967295, 1, 32, 2.25)
+// Integer semantics (Phase 0 §7): wrapping and saturating operators,
+// shifts discard bits, arithmetic right shift, MIN % -1 = 0, lossless casts.
+
+fn main() -> (i32, i32, u8, u8, i8, i16, u32, i32, i32, i32, u32, u8, u32, f64) {
+    let a = 3 + 4
+    let b = -7 / 3
+    let c = 250u8 +| 10
+    let d = 5u8 -| 10
+    let e = 120i8 +| 100
+    let f = 127i8 as i16 + 1
+    let g = 2u32 ** 10
+    let h = -16 >> 2u32
+    let i = 0xF0 >> 6u32
+    let j = 0b0110 & 0b1110
+    let k = 0u32 -% 1
+    let l = 0x81u8 << 7u32 >> 7u32
+    let m = 'A' as u32 - 33
+    let n = 1.5 ** 2
+    (a, b, c, d, e, f, g, h, i, j, k, l, m, n)
+}

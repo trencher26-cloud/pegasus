@@ -1,0 +1,16 @@
+//@ id: I-009
+//@ tags: pattern, ambiguity.F
+//@ expect: accept
+
+fn t(v: Value) -> i32 = match v {
+    (0, _) => 1,
+    Point { x: 0, .. } => 2,
+    1 | 2 | 3 => 3,
+    'a'..='z' => 4,
+    -5..=5 => 5,
+    [first, .., last] => 6,
+    Shape.Circle(var r) => 7,
+    Some(n) if n > 10 => 8,
+    "text" => 9,
+    _ => 0,
+}

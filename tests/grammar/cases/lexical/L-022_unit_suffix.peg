@@ -1,0 +1,8 @@
+//@ id: L-022
+//@ tags: lexical.int, lexical.suffix
+//@ expect: reject
+//@ error: L006 offset=131 near="2ms"
+
+fn t() {
+    let d = 2ms
+}

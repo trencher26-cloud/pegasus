@@ -1,0 +1,9 @@
+//@ id: A-002
+//@ tags: ambiguity.A
+//@ expect: reject
+//@ error: P001 offset=208 near=": 0"
+//@ note: '{' after Point starts the if block, so 'x: 0' is not a statement
+
+fn t(p: Point) {
+    if p == Point { x: 0 } { hit() }
+}

@@ -1,0 +1,6 @@
+//@ id: A-016
+//@ tags: ambiguity.C, closure
+//@ expect: accept
+//@ shape: (closure (x) (+ x 1))
+
+fn t() = x => x + 1

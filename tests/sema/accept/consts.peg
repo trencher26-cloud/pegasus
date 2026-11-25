@@ -1,0 +1,25 @@
+// Width-aware constant evaluation (S0.2): the full range of every integer
+// type, wrapping-free arithmetic checked per type, shifts up to width - 1.
+
+const U128_MAX: u128 = 340282366920938463463374607431768211455
+const I128_MIN: i128 = -170141183460469231731687303715884105728
+const I8_MIN: i8 = -128
+const TOP_BIT: i128 = 1i128 << 127u32
+const SHIFTED: u8 = 0xFF << 4u32
+const ARITH: u64 = (1 << 40u32) * 3 - 7
+const SIGNED_SHR: i32 = -16 >> 2u32
+const REM: i32 = -7 % 3
+const MASK: u16 = ~0x00FF
+const POW: u32 = 3 ** 4u32
+const LEN: usize = 2 * 2
+const FLAG: bool = U128_MAX > 5 && I8_MIN < 0
+
+struct Grid<const N: usize> {
+    cells: [u8; N]
+}
+
+fn big() -> Grid<5000000000> = Grid { cells: [0; 5000000000] }
+
+fn main() {
+    let lens: [u8; LEN] = [1, 2, 3, 4]
+}

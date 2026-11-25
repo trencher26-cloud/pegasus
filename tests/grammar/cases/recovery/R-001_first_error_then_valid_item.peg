@@ -1,0 +1,9 @@
+//@ id: R-001
+//@ tags: recovery, recovery.item
+//@ expect: reject
+//@ error: P001 offset=195 near="= 1"
+//@ note: the parser must recover at 'async fn b' and produce an item for b
+
+fn a() { let = 1 }
+
+async fn b() {}

@@ -1,0 +1,9 @@
+//@ id: N-017
+//@ tags: newline.brace_sep, expr.match
+//@ expect: accept
+
+fn t(v: i32) -> i32 = match v {
+    0 => 10
+    1 => 20
+    _ => 30
+}

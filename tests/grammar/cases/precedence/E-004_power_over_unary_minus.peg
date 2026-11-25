@@ -1,0 +1,6 @@
+//@ id: E-004
+//@ tags: precedence, expr.power, expr.unary
+//@ expect: accept
+//@ shape: (neg (** 2 2))
+
+fn t() = -2**2

@@ -1,0 +1,6 @@
+//@ id: E-006
+//@ tags: precedence, expr.bitwise, expr.cmp
+//@ expect: accept
+//@ shape: (== (& x MASK) 0)
+
+fn t() = x & MASK == 0

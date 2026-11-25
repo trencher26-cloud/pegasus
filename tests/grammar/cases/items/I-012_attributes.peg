@@ -1,0 +1,10 @@
+//@ id: I-012
+//@ tags: attribute, attribute.args
+//@ expect: accept
+
+@inline
+@target(cpu.avx2)
+@parallel(deterministic)
+fn t() {
+    @layout(aosoa(8)) let ps: Vec<P> = load()
+}

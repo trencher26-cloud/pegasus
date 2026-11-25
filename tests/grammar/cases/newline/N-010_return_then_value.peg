@@ -1,0 +1,9 @@
+//@ id: N-010
+//@ tags: newline.consequence
+//@ expect: accept
+//@ stmts: 2
+
+fn t() -> i32 {
+    return
+    1
+}

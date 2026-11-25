@@ -1,0 +1,3 @@
+//@ trap: attempt to exponentiate with overflow (`i128`)
+fn p(b: i128, e: u32) -> i128 = b ** e
+fn main() -> (i128, i128, i128) = (p(-1, 4000000001), p(2, 126), p(2, 127))

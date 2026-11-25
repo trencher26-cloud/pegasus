@@ -1,0 +1,10 @@
+//@ id: N-001
+//@ tags: newline.rule3
+//@ expect: accept
+//@ shape: (mcall (mcall foo bar) baz 1)
+//@ nl-dropped: offset=201 near="\n    .bar"
+//@ nl-dropped: offset=212 near="\n    .baz"
+
+fn t() = foo
+    .bar()
+    .baz(1)

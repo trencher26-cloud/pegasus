@@ -1,0 +1,6 @@
+//@ id: E-007
+//@ tags: precedence, expr.bitwise
+//@ expect: accept
+//@ shape: (| a (^ b (& c d)))
+
+fn t() = a | b ^ c & d

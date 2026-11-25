@@ -1,0 +1,10 @@
+//@ id: P0-007
+//@ tags: phase0, unsafe.cap, generic.call
+//@ expect: accept
+
+fn poke() {
+    unsafe(cap: RawMemory) {
+        let p = ptr.from_addr<u32>(0xFEE0_0000)
+        p.write_volatile(1)
+    }
+}

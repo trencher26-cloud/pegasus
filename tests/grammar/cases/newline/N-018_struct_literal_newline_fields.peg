@@ -1,0 +1,9 @@
+//@ id: N-018
+//@ tags: newline.brace_sep, expr.struct
+//@ expect: accept
+//@ shape: (struct Point (x 1) (y 2))
+
+fn t() = Point {
+    x: 1
+    y: 2
+}

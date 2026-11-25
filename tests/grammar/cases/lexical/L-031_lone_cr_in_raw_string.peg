@@ -1,0 +1,6 @@
+//@ id: L-031
+//@ tags: lexical.raw_string, lexical.crlf
+//@ expect: reject
+//@ error: L002 offset=134 near="\r"
+
+const A: str = r"onetwo"

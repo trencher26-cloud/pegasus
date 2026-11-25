@@ -1,0 +1,3 @@
+//@ trap: postcondition
+fn bad(x: i32) -> i32 ensures result > x = x - 1
+fn main() -> i32 = bad(3)

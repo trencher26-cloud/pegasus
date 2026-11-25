@@ -1,0 +1,10 @@
+//@ id: P0-018
+//@ tags: phase0, closure
+//@ expect: accept
+
+fn commit(tx: Tx) {
+    task.shield(() => {
+        tx.write()
+        tx.flush()
+    })
+}

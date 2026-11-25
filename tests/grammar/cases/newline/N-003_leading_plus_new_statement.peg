@@ -1,0 +1,11 @@
+//@ id: N-003
+//@ tags: newline.consequence, expr.unary_plus, ambiguity.I
+//@ expect: accept
+//@ stmts: 2
+//@ nl-kept: offset=265 near="\n    + b"
+//@ note: second statement is the unary expression +b; compilers warn that its value is unused
+
+fn t() {
+    let x = a
+    + b
+}

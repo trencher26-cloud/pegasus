@@ -1,0 +1,5 @@
+//@ id: P0-010
+//@ tags: phase0, item.extern, type.pointer
+//@ expect: accept
+
+extern "C" fn strlen(s: *const c_char) -> usize

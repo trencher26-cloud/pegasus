@@ -1,0 +1,6 @@
+//@ id: E-022
+//@ tags: precedence, expr.cmp
+//@ expect: reject
+//@ error: P002 offset=118 near="< c"
+
+fn t() = a < b < c

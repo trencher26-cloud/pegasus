@@ -1,0 +1,15 @@
+[package]
+name = "pegasus-driver"
+description = "The `pegasus` command-line driver"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "pegasus"
+path = "src/main.rs"
+
+[dependencies]
+pegasus-sema = { path = "../sema" }
+pegasus-pir = { path = "../pir" }

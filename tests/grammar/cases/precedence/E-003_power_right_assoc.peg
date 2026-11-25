@@ -1,0 +1,6 @@
+//@ id: E-003
+//@ tags: precedence, expr.power
+//@ expect: accept
+//@ shape: (** 2 (** 3 2))
+
+fn t() = 2**3**2

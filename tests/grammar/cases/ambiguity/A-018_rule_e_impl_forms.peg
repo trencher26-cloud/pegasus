@@ -1,0 +1,11 @@
+//@ id: A-018
+//@ tags: ambiguity.E, item.impl
+//@ expect: accept
+
+impl Area for Shape {
+    fn area(self) -> f64 = 0.0
+}
+
+impl Shape {
+    fn new() -> Shape = Shape.Unit
+}

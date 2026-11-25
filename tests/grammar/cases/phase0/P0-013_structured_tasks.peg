@@ -1,0 +1,13 @@
+//@ id: P0-013
+//@ tags: phase0, closure, expr.call.named
+//@ expect: accept
+
+fn work(left: Text, right: Text, data: Span<i32>) {
+    task.scope(s => {
+        let a = s.spawn(() => parse(&left))
+        let b = s.spawn(() => parse(&right))
+        merge(a.join()?, b.join()?)
+    })
+    let sum = data.par().map(f).reduce(0, (a, b) => a + b)
+    let ch = channel<Msg>(capacity: 64)
+}

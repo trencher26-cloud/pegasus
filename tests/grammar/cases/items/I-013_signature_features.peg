@@ -1,0 +1,9 @@
+//@ id: I-013
+//@ tags: param.mode, return.borrow, effects
+//@ expect: accept
+
+impl Buffer {
+    fn view(self) -> in Span<u8> { self.data }
+    fn fill(inout self, x: u8) effects(alloc) { self.data.fill(x) }
+    fn into_vec(own self) -> Vec<u8> { self.data }
+}

@@ -1,0 +1,13 @@
+//@ id: I-001
+//@ tags: item.struct, newline.brace_sep
+//@ expect: accept
+
+pub struct Config {
+    pub name: str,
+    retries: u32,
+    timeout: f64<s>,
+}
+
+struct Empty {}
+
+struct Pair<A, B> where A: Copy { a: A, b: B }

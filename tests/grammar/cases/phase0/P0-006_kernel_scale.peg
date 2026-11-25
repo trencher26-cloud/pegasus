@@ -1,0 +1,8 @@
+//@ id: P0-006
+//@ tags: phase0, fn.kernel, param.mode
+//@ expect: accept
+
+kernel fn scale(data: inout DeviceSpan<f32>, k: f32) {
+    let i = grid.global_id(0)
+    if i < data.len { data[i] *= k }
+}

@@ -1,0 +1,7 @@
+//@ id: L-007
+//@ tags: lexical.string, string.interp
+//@ expect: accept
+
+fn show(x: f64, xs: Span<i32>) {
+    io.print("x = {x:>8.2} first = {xs[0]} literal {{braces}}")
+}

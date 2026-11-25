@@ -1,0 +1,73 @@
+//@ result: (6765, 125, 55, 4, 42, 10, 3628800)
+// Control flow in native code: recursion, nested loops with early exits,
+// `defer`, `if` expressions feeding block arguments, and accumulating
+// through `inout`.
+
+fn fib(n: u32) -> u64 = if n < 2 { n as u64 } else { fib(n - 1) + fib(n - 2) }
+
+fn ack(m: u32, n: u32) -> u32 {
+    if m == 0 {
+        return n + 1
+    }
+    if n == 0 {
+        return ack(m - 1, 1)
+    }
+    ack(m - 1, ack(m, n - 1))
+}
+
+fn triangle(n: i32) -> i32 {
+    var s = 0
+    var k = 1
+    while true {
+        if k > n {
+            break
+        }
+        s += k
+        k += 1
+    }
+    s
+}
+
+fn first_square_over(limit: u32) -> u32 {
+    var i: u32 = 0
+    loop {
+        if i * i > limit {
+            return i
+        }
+        i += 1
+    }
+}
+
+fn deferred() -> i32 {
+    var x = 0
+    {
+        defer { x = x * 10 + 2 }
+        x = 4
+    }
+    x
+}
+
+fn tally(acc: inout i32, n: i32) {
+    var j = 0
+    while j < n {
+        acc += 1
+        j += 1
+    }
+}
+
+fn fact(n: u64) -> u64 {
+    var r: u64 = 1
+    var k: u64 = 2
+    while k <= n {
+        r *= k
+        k += 1
+    }
+    r
+}
+
+fn main() -> (u64, u32, i32, u32, i32, i32, u64) {
+    var acc = 0
+    tally(&acc, 4)
+    tally(&acc, 6)
+    (fib(20), ack(2, 61), triangle(10), first_square_over(10), deferred(), acc, fact(10))
+}

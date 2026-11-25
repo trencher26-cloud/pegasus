@@ -1,0 +1,6 @@
+//@ id: A-014
+//@ tags: ambiguity.C, expr.tuple
+//@ expect: accept
+//@ shape: (tuple a b)
+
+fn t() = (a, b)

@@ -1,0 +1,9 @@
+//@ id: N-007
+//@ tags: newline.rule1
+//@ expect: accept
+//@ shape: (call f a b)
+
+fn t() = f(
+    a,
+    b
+)

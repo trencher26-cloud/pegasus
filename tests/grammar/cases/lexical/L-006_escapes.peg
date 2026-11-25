@@ -1,0 +1,6 @@
+//@ id: L-006
+//@ tags: lexical.string, lexical.char
+//@ expect: accept
+
+const S: str = "tab\t nl\n quote\" brace\{ uni\u{1F600}"
+const Q: char = '\''

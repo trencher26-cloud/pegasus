@@ -1,0 +1,7 @@
+# Corpus files must stay byte-exact: some cases test CR LF, lone CR,
+# invalid UTF-8 and BOM handling. Never let git normalize their line endings.
+tests/grammar/cases/** -text
+# Goldens and the review manifest are compared byte for byte and frozen by
+# SHA-256. A CRLF checkout (Git for Windows' default core.autocrlf=true) would
+# make every golden mismatch and make freeze record hashes CI cannot reproduce.
+tests/grammar/goldens/** -text

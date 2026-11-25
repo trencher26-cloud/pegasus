@@ -1,0 +1,10 @@
+//@ id: N-006
+//@ tags: newline.rule4
+//@ expect: reject
+//@ error: P001 offset=239 near="{"
+//@ nl-kept: offset=238 near="\n{"
+//@ note: the header ended at '=', so the newline before '{' survives and '{' cannot start an item
+
+fn f() = x
+{
+}

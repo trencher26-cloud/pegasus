@@ -1,0 +1,10 @@
+//@ id: L-039
+//@ tags: lexical.ident, lexical.nfc
+//@ expect: accept
+//@ stmts: 2
+//@ note: cafe + U+0301 is canonically equivalent to café (U+00E9): two IDENT tokens with different spans and the same identifier key; the resolver must treat them as one name
+
+fn t() {
+    let café = 1
+    café + 1
+}

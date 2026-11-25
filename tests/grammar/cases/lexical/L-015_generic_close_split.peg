@@ -1,0 +1,8 @@
+//@ id: L-015
+//@ tags: lexical.split, type.generic
+//@ expect: accept
+
+fn t() {
+    let a: Vec<Vec<Vec<i32>>> = make()
+    let b: Vec<Vec<i32>>= make()
+}

@@ -1,0 +1,8 @@
+//@ id: L-002
+//@ tags: lexical.float
+//@ expect: accept
+
+const A: f32 = 3.0f32
+const B: f64 = 1e10
+const C: f64 = 2.5e-3f64
+const D: f64 = 7f64

@@ -1,0 +1,15 @@
+//@ id: N-005
+//@ tags: newline.rule4, contract.requires
+//@ expect: accept
+//@ nl-dropped: offset=279 near="\n    effects"
+//@ nl-dropped: offset=298 near="\n    requires"
+//@ nl-dropped: offset=317 near="\n    ensures"
+//@ nl-dropped: offset=340 near="\n{"
+
+fn t(x: i32) -> i32
+    effects(panic)
+    requires x > 0
+    ensures result > 0
+{
+    x
+}

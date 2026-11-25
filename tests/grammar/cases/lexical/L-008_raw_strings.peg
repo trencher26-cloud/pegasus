@@ -1,0 +1,8 @@
+//@ id: L-008
+//@ tags: lexical.raw_string
+//@ expect: accept
+
+const A: str = r"C:\path\no\escapes"
+const B: str = r#"has "quotes" inside"#
+const C: str = r"line one
+line two"

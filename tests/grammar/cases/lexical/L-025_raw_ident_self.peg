@@ -1,0 +1,8 @@
+//@ id: L-025
+//@ tags: lexical.raw_ident
+//@ expect: reject
+//@ error: L008 offset=120 near="r#self"
+
+fn t() {
+    let r#self = 1
+}

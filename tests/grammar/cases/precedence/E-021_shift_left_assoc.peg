@@ -1,0 +1,6 @@
+//@ id: E-021
+//@ tags: precedence, expr.shift
+//@ expect: accept
+//@ shape: (<< (>> a 1) 2)
+
+fn t() = a >> 1 << 2

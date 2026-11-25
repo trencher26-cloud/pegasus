@@ -1,0 +1,10 @@
+//@ id: P0-017
+//@ tags: phase0, stmt.region
+//@ expect: accept
+
+fn build() {
+    region r {
+        let g = Graph.new_in(r)
+        g.connect(1, 2)
+    }
+}

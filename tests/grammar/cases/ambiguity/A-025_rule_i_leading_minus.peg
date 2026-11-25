@@ -1,0 +1,9 @@
+//@ id: A-025
+//@ tags: ambiguity.I, newline.consequence
+//@ expect: accept
+//@ stmts: 2
+
+fn t() {
+    let x = a
+    - b
+}

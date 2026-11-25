@@ -1,0 +1,27 @@
+//@ result: (-128, 255, -32768, 65535, -2147483648, 4294967295, -9223372036854775808, 18446744073709551615, -170141183460469231731687303715884105728, 340282366920938463463374607431768211455, 127, 0, -1, 9223372036854775807, 2, true, 65, 200, -56)
+// Integer extremes of every width, printed through the native runtime;
+// wrapping and saturating forms; sign/zero extension and truncation-free
+// casts; `isize` and `usize`; comparisons and boolean logic.
+
+fn main() -> (i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, i8, u8, isize, isize, usize, bool, u16, u8, i16) {
+    let a = 127i8 +% 1
+    let b = 0u8 -% 1
+    let c = 32767i16 +% 1
+    let d = 0u16 -% 1
+    let e = -2147483647i32 - 1
+    let f = 4294967295u32 +| 9
+    let g = -9223372036854775807i64 -| 2
+    let h = 18446744073709551615u64 *| 3
+    let i = -170141183460469231731687303715884105727i128 - 1
+    let j = 0u128 -% 1
+    let k = 100i8 +| 100
+    let l = 3u8 -| 4
+    let m = 0isize -% 1
+    let n = 9223372036854775806isize +| 5
+    let o = 7usize / 3
+    let p = (a < 0 && b > 254) || false
+    let q = 65u8 as u16
+    let r = 100u8 *% 2
+    let s = r as i16 - 256
+    (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s)
+}

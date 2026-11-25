@@ -1,0 +1,7 @@
+//@ id: A-017
+//@ tags: ambiguity.C, expr.paren
+//@ expect: accept
+//@ shape: a
+//@ note: exercises the bracket-match table; decision is O(1) per group
+
+fn t() = ((((((((a))))))))

@@ -1,0 +1,11 @@
+//@ id: I-016
+//@ tags: stmt.defer, stmt.region, unsafe.cap
+//@ expect: accept
+//@ stmts: 4
+
+fn t(f: File) {
+    defer f.close()
+    defer { log("done") }
+    region scratch { work(scratch) }
+    unsafe(cap: FFI + RawMemory) { ffi_call() }
+}

@@ -1,0 +1,6 @@
+//@ id: L-023
+//@ tags: lexical.int
+//@ expect: reject
+//@ error: L006 offset=111 near="0x_FF"
+
+const A: u32 = 0x_FF

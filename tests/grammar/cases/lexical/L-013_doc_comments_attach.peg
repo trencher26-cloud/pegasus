@@ -1,0 +1,18 @@
+//@ id: L-013
+//@ tags: lexical.doc_comment, item.struct, item.enum
+//@ expect: accept
+
+/// A point.
+struct Point {
+    /// Horizontal.
+    x: f64
+    /// Vertical.
+    y: f64
+}
+
+/// Directions.
+enum Dir {
+    /// Up.
+    Up
+    Down
+}

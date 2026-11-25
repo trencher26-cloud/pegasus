@@ -1,0 +1,6 @@
+//@ id: A-007
+//@ tags: ambiguity.B, generic.path
+//@ expect: accept
+//@ shape: (mcall (gpath Vec (i32)) new)
+
+fn t() = Vec<i32>.new()

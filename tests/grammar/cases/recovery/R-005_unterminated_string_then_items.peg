@@ -1,0 +1,11 @@
+//@ id: R-005
+//@ tags: recovery, lexical.string
+//@ expect: reject
+//@ error: L005 offset=192 near="\"open"
+//@ note: the string ends at its line; fn u must still parse
+
+fn t() {
+    let s = "open
+}
+
+fn u() = 1

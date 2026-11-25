@@ -1,0 +1,9 @@
+//@ id: A-021
+//@ tags: ambiguity.G, type.unit
+//@ expect: reject
+//@ error: P001 offset=175 near="/s)"
+//@ note: a leading '(' starts a tuple type
+
+fn t() {
+    let q: Foo<(m/s)> = make()
+}

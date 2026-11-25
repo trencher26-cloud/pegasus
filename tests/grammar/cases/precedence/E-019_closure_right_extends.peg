@@ -1,0 +1,6 @@
+//@ id: E-019
+//@ tags: precedence, closure
+//@ expect: accept
+//@ shape: (closure (x) (closure (y) (+ x y)))
+
+fn t() = x => y => x + y

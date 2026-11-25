@@ -1,0 +1,6 @@
+//@ id: I-006
+//@ tags: item.type_alias
+//@ expect: accept
+
+type Bytes = Vec<u8>
+type Small<N> = u32 where self < N

@@ -1,0 +1,6 @@
+//@ id: E-015
+//@ tags: precedence, expr.bitwise, expr.unary
+//@ expect: accept
+//@ shape: (& (bnot x) y)
+
+fn t() = ~x & y

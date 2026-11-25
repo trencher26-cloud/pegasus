@@ -1,0 +1,106 @@
+// Control flow, patterns and exhaustiveness.
+
+enum Token {
+    Num(i64),
+    Op(char),
+    Eof,
+}
+
+fn classify(t: Token) -> u8 = match t {
+    Num(n) if n < 0 => 0,
+    Num(0) => 1,
+    Num(_) => 2,
+    Op('+') | Op('-') => 3,
+    Op(_) => 4,
+    Eof => 5,
+}
+
+fn bools(a: bool, b: bool) -> u8 = match (a, b) {
+    (true, true) => 3,
+    (true, false) => 2,
+    (false, _) => 0,
+}
+
+fn arrays(xs: [i32; 3]) -> i32 = match xs {
+    [first, .., last] => first + last,
+}
+
+fn grade(score: u8) -> char = match score {
+    90..=100 => 'A',
+    80..90 => 'B',
+    _ => 'C',
+}
+
+const LIMIT: i32 = 10
+
+fn limits(x: i32) -> bool = match x {
+    LIMIT => true,
+    _ => false,
+}
+
+fn count_down(n: i32) -> i32 {
+    var i = n
+    var steps = 0
+    while i > 0 {
+        i -= 1
+        if i == 3 {
+            continue
+        }
+        steps += 1
+    }
+    steps
+}
+
+fn find(xs: [i32; 5], want: i32) -> usize? {
+    var i: usize = 0
+    while i < 5 {
+        if xs[i] == want {
+            return Some(i)
+        }
+        i += 1
+    }
+    None
+}
+
+fn drain(o: i32?) -> i32 {
+    var cur = o
+    var total = 0
+    while let Some(v) = cur {
+        total += v
+        cur = if v > 0 { Some(v - 1) } else { None }
+    }
+    total
+}
+
+fn bits(x: u32) -> u32 {
+    let a = x << 3
+    let b = a >> 1u8
+    let c = (b & 0xFF) | 1
+    let d = c ^ ~x
+    let e = 2u32 ** 10
+    let f = 1.5f64 ** 2
+    let g = x +% 1
+    let h = x -| 5
+    d + e + g + h
+}
+
+fn diverge(x: i32) -> i32 {
+    let y = if x > 0 { x } else { return 0 }
+    y * 2
+}
+
+fn main() {
+    let t = classify(Token.Op('+'))
+    let s = grade(85)
+    let idx = find([1, 2, 3, 4, 5], 4)
+    let label = if let Some(i) = idx { i } else { 99 }
+    defer {
+        let unused = 1
+    }
+    region arena {
+        let inner = 5
+    }
+    unsafe(cap: RawMemory) {
+        let raw = 1
+    }
+}
