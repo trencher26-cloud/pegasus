@@ -23,6 +23,27 @@ Usage: tools/native_diff.py <pegasus> <pegasus-native> <runtime> [--mlir PEGASUS
 """
 import argparse, glob, os, random, subprocess, sys, tempfile
 
+NO_MAIN = "has no `fn main()`"
+
+# The outcomes each kind of program may have; anything else fails the test,
+# so a regression cannot quietly shrink coverage (review of PR #4).
+#   native:  the native corpus must build and match.
+#   run:     interpreter tests may be outside the native subset (both
+#            backends refusing them), nothing else.
+#   intops:  generated within the subset, must match.
+#   random:  generated within the subset; the interpreter's step limit may
+#            stop one (not language semantics, spec/native.md §5).
+#   mutated: programs `pegasus check` accepted may also be outside the
+#            subset or have no main; any other interpreter rejection, and
+#            any timeout, fails.
+ALLOWED = {
+    "native": {"match"},
+    "run": {"match", "unsupported"},
+    "intops": {"match"},
+    "random": {"match", "step-limit"},
+    "mutated": {"match", "unsupported", "step-limit", "no-main"},
+}
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INT_TYPES = {"i8": (True, 8), "i16": (True, 16), "i32": (True, 32), "i64": (True, 64), "i128": (True, 128),
              "u8": (False, 8), "u16": (False, 16), "u32": (False, 32), "u64": (False, 64), "u128": (False, 128)}
@@ -40,10 +61,13 @@ class Runner:
         self.n = 0
 
     def compare(self, path):
-        """Returns (status, detail): status is 'match', 'unsupported', 'rejected' or 'MISMATCH'."""
+        """Returns (status, detail): 'match', 'unsupported' (both backends refuse it), 'step-limit'
+        (the interpreter's guard stopped it), 'no-main', 'rejected' or 'MISMATCH'."""
         self.n += 1
         i = subprocess.run([self.a.pegasus, "run", path], capture_output=True, text=True, timeout=120)
         if i.returncode not in (0, 101):
+            if NO_MAIN in i.stderr:
+                return "no-main", ""
             return "rejected", i.stderr.strip()[:300]
         if i.stderr.startswith("trap: step limit reached"):
             # The step limit guards the interpreter only; it is not language
@@ -270,7 +294,7 @@ def main():
     def tally(kind, st, detail, path, src=None):
         counts.setdefault(kind, {}).setdefault(st, 0)
         counts[kind][st] += 1
-        if st == "MISMATCH" or (kind == "native" and st != "match") or (kind in ("random", "intops") and st == "rejected"):
+        if st not in ALLOWED[kind]:
             bad.append(f"[{kind}] {path}: {st}: {detail}" + (f"\n----\n{src}----" if src else ""))
 
     for p in sorted(glob.glob(os.path.join(ROOT, "tests", "native", "*.peg"))):
@@ -314,4 +338,5 @@ def main():
     sys.exit(1 if bad else 0)
 
 
-main()
+if __name__ == "__main__":
+    main()

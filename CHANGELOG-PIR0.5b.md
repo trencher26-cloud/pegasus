@@ -46,3 +46,19 @@ certification gate).
 spec/mlir.md §5 (new; Build is now §6), spec/native.md §1, DEFERRED
 (MLIR-2 implemented, NATIVE-1 resolved; new MLIR-4 subset growth in both
 backends, MLIR-5 MLIR-level optimization).
+
+## Review of PR #4
+
+- **The differential test could lose coverage silently.** `tally()` failed
+  only some outcomes per category: a `tests/run` program the interpreter
+  suddenly rejected, a generated program outside the native subset, or a
+  mutated program the interpreter rejected after `pegasus check` all left
+  the test green. Each category now has an explicit allow-list (`ALLOWED`
+  in tools/native_diff.py); anything else fails. A missing `main` is its
+  own outcome (`no-main`), allowed only for mutated programs (all 14
+  interpreter rejections in the d6 fuzz corpus were exactly that).
+- `tools/native_diff_selftest.py` (ctest `native_diff_selftest`): drives
+  native_diff in-process against a fake toolchain, over 11 scenarios. Among
+  them is the review's regression: an otherwise accepted `tests/run` program
+  that `pegasus run` rejects must fail. Against the previous script, 3 of
+  the 11 scenarios passed when they must fail.

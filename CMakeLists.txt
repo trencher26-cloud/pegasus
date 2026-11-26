@@ -157,6 +157,10 @@ if(PEGASUS_BUILD_BACKEND)
   if(PEGASUS_BUILD_MLIR)
     set(PEGASUS_DIFF_MLIR --mlir $<TARGET_FILE:pegasus-mlir>)
   endif()
+  # The differential test's outcome policy, against a fake toolchain.
+  add_test(NAME native_diff_selftest
+    COMMAND ${Python3_EXECUTABLE} tools/native_diff_selftest.py
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
   add_test(NAME native_differential
     COMMAND ${Python3_EXECUTABLE} tools/native_diff.py ${PEGASUS_EXE}
       $<TARGET_FILE:pegasus-native> $<TARGET_FILE:pegasus_rt> ${PEGASUS_DIFF_MLIR}
