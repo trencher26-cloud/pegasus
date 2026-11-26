@@ -9,6 +9,13 @@ find_program(CARGO cargo REQUIRED)
 find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
 
 set(PEGASUS_CARGO_PROFILE "release" CACHE STRING "Cargo profile for the Rust crates")
+# Release by default, like the cargo profile and the pinned LLVM/MLIR package:
+# on MSVC an unset build type means the debug runtime (/MDd), which cannot
+# link with the package's release libraries.
+get_property(PEGASUS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(NOT PEGASUS_MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type (Release, RelWithDebInfo, MinSizeRel, Debug)" FORCE)
+endif()
 set(CARGO_ARGS --manifest-path ${CMAKE_SOURCE_DIR}/Cargo.toml --target-dir ${CMAKE_BINARY_DIR}/cargo --locked)
 
 add_custom_target(pegasus_rust ALL
@@ -124,6 +131,24 @@ if(PEGASUS_BUILD_BACKEND)
       ${CMAKE_BINARY_DIR}/bool_eq.pirb)
   set_tests_properties(backend_abi PROPERTIES
     DEPENDS "backend_abi_fixtures;backend_abi_fixtures_unsupported;backend_abi_fixtures_bool_eq")
+  # The MLIR dialect and PIRB importer (spec/mlir.md): on by default when
+  # PEGASUS_LLVM_ROOT is the pinned package, which provides MLIR.
+  if(PEGASUS_LLVM_ROOT)
+    set(PEGASUS_BUILD_MLIR_DEFAULT ON)
+  else()
+    set(PEGASUS_BUILD_MLIR_DEFAULT OFF)
+  endif()
+  option(PEGASUS_BUILD_MLIR "Build the Pegasus MLIR dialect and PIRB importer" ${PEGASUS_BUILD_MLIR_DEFAULT})
+  if(PEGASUS_BUILD_MLIR)
+    add_subdirectory(backend/mlir)
+    # PIRB -> MLIR -> PIRB is byte-identical and MLIR text round-trips, for
+    # every corpus program; the dialect verifier rejects malformed modules.
+    add_test(NAME mlir_roundtrip
+      COMMAND ${Python3_EXECUTABLE} tools/mlir_roundtrip.py ${PEGASUS_EXE} $<TARGET_FILE:pegasus-mlir> $<TARGET_FILE:pegasus-native>
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+    add_test(NAME mlir_unit COMMAND pegasus-mlir-unit)
+  endif()
+
   # Native executables vs the reference interpreter: corpus, integer
   # operators and generated programs (stdout, exit status, trap message).
   add_test(NAME native_differential

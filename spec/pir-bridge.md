@@ -41,7 +41,8 @@ inst    := has_result:u8 [result:id] tag:u8 operands
 
 - `major` = 1, `minor` = 0. A reader rejects a different major version and
   a higher minor version (a minor version may only add tags).
-- `flags` must equal 1: bit 0 = *verified* (always set by the frontend);
+- `flags` must equal 1 in any file a backend consumes: bit 0 = *verified*
+  (set only by the Rust frontend; see §2.3);
   bits 1–63 are reserved and zero. A reader rejects a file without bit 0 and
   a file with any reserved bit set (a future minor version that defines a
   flag also raises `minor`, which older readers reject).
@@ -102,6 +103,27 @@ in its type's width).
 | 24 | `store` through a reference | ref path v |
 
 `path := vec<projection>`. Operand meanings are those of spec/pir.md §2.
+
+### 2.3 Unverified files and `pegasus pirb-verify`
+
+A file with `flags = 0` is *unverified*: well formed, but no claim that the
+module passed the PIR verifier. Tools that produce PIRB from something
+other than the Rust frontend (`pegasus-mlir export`, spec/mlir.md) write
+flags 0. The C++ writer enforces this for every caller:
+`pir::encodeUnverified` (`backend/src/pirb_write.hpp`) refuses a module
+whose flags are not 0, and has no way to write the verified bit. An unverified file is valid only as input to
+`pegasus pirb-verify in.pirb out.pirb`; every consumer (the C++ reader, the
+Rust `bridge::decode`) refuses it as "not marked verified".
+
+`pegasus pirb-verify` (`bridge::certify`) parses the file structurally,
+refuses reserved flag bits, runs the PIR verifier and the entry check, and
+writes the module with `bridge::encode` — so its output is the verified
+file the frontend would have written. It accepts verified input too
+(certifying is idempotent). Exit status: 0 written; 1 the verifier
+rejected the module (`error: PIR verifier: …`), and no file is written;
+2 usage or I/O error; 3 malformed file (`error: malformed PIRB: …`).
+
+This adds no format change: readers already refused flags 0.
 
 ## 3. Structural validation (every reader)
 

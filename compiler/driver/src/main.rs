@@ -6,6 +6,10 @@
 //!     pegasus run <file.peg>     lower to PIR and run `main` in the reference interpreter
 //!     pegasus pirb <file.peg> <out.pirb>
 //!                                write the verified PIR as a PIRB file (spec/pir-bridge.md)
+//!     pegasus pirb-verify <in.pirb> <out.pirb>
+//!                                certify PIRB written outside the frontend (unverified, e.g.
+//!                                by `pegasus-mlir export`): run the PIR verifier, write it
+//!                                marked verified
 //!     pegasus build <file.peg> <out>
 //!                                compile to a native executable (spec/native.md): PIRB ->
 //!                                `pegasus-native` -> LLVM IR -> clang, linked with the runtime
@@ -27,6 +31,7 @@ use std::process::ExitCode;
 fn usage() -> ExitCode {
     eprintln!("usage: pegasus (check | hir | pir | run) <file.peg>");
     eprintln!("       pegasus (pirb | build) <file.peg> <output>");
+    eprintln!("       pegasus pirb-verify <in.pirb> <out.pirb>");
     ExitCode::from(2)
 }
 
@@ -91,8 +96,47 @@ enum Outcome {
     NoMain,
 }
 
+/// `pegasus pirb-verify <in.pirb> <out.pirb>`: certify PIRB written outside
+/// the frontend (e.g. by `pegasus-mlir export`, which writes it unverified):
+/// run the PIR verifier and write it marked verified (spec/pir-bridge.md
+/// §2.3). Exit status: 0 ok, 1 the verifier rejects it, 2 usage or I/O,
+/// 3 malformed PIRB.
+fn pirb_verify(input: &str, output: &str) -> ExitCode {
+    let bytes = match std::fs::read(input) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("error: cannot read {input}: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    match pegasus_pir::bridge::certify(&bytes) {
+        Ok(out) => match std::fs::write(output, out) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: cannot write {output}: {e}");
+                ExitCode::from(2)
+            }
+        },
+        Err(pegasus_pir::bridge::CertifyError::Malformed(m)) => {
+            eprintln!("error: malformed PIRB: {m}");
+            ExitCode::from(3)
+        }
+        Err(pegasus_pir::bridge::CertifyError::Invalid(errs)) => {
+            for e in errs {
+                eprintln!("error: PIR verifier: {e}");
+            }
+            ExitCode::from(1)
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if let [c, i, o] = args.as_slice() {
+        if c == "pirb-verify" {
+            return pirb_verify(i, o);
+        }
+    }
     let (cmd, path, output) = match args.as_slice() {
         [c, p] if matches!(c.as_str(), "check" | "hir" | "pir" | "run") => {
             (c.clone(), p.clone(), None)

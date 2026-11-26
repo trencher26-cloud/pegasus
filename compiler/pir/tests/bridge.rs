@@ -193,3 +193,157 @@ fn corrupted_input_never_panics() {
     }
     assert!(checked > 10_000);
 }
+
+/// spec/pir-bridge.md §2.3: an unverified copy (flags 0), as `pegasus-mlir
+/// export` writes it, is refused by `decode` and certified by `certify` into
+/// exactly the verified original.
+#[test]
+fn certify_turns_unverified_files_into_the_verified_original() {
+    use pegasus_pir::bridge::{certify, CertifyError};
+    let mut n = 0;
+    for (name, m, main) in corpus() {
+        let b = encode(&m, main).unwrap();
+        let unverified = with_flags(&b, 0);
+        assert!(
+            decode(&unverified)
+                .unwrap_err()
+                .contains("not marked verified"),
+            "{name}"
+        );
+        assert_eq!(certify(&unverified).as_deref(), Ok(&b[..]), "{name}");
+        assert_eq!(
+            certify(&b).as_deref(),
+            Ok(&b[..]),
+            "{name}: certifying a verified file is the identity"
+        );
+        n += 1;
+    }
+    assert!(n >= 15);
+    let (_, m, main) = corpus().into_iter().next().unwrap();
+    let b = encode(&m, main).unwrap();
+    assert!(
+        matches!(certify(&with_flags(&b, 2)), Err(CertifyError::Malformed(e)) if e.contains("reserved"))
+    );
+    assert!(matches!(
+        certify(&b[..b.len() - 1]),
+        Err(CertifyError::Malformed(_))
+    ));
+}
+
+/// A module the verifier rejects is not certified, whatever its flags say.
+#[test]
+fn certify_runs_the_verifier() {
+    use pegasus_pir::bridge::{certify, CertifyError};
+    // fn f() -> i32 { %0 = const true; ret %0 }: returns a bool as i32. Built
+    // by hand and serialized through a valid sibling: encode refuses it, so
+    // patch the constant of a valid module instead.
+    let ok = Module {
+        funcs: vec![Func {
+            name: "f".into(),
+            kind: FuncKind::Defined,
+            params: vec![],
+            ret: Type::Bool,
+            slots: vec![],
+            slot_names: vec![],
+            values: vec![Type::Bool],
+            blocks: vec![Block {
+                params: vec![],
+                insts: vec![Inst {
+                    result: Some(0),
+                    kind: InstKind::Const(Const::Bool(true)),
+                }],
+                term: Term::Ret(0),
+            }],
+        }],
+        ..Default::default()
+    };
+    let mut b = encode(&ok, None).unwrap();
+    // The function's return type is the Bool type tag (2) right after the
+    // (empty) parameter list; make it i32 (tag 0, int kind 2) by rewriting
+    // ret type: find "params=[] ret=Bool" = [0x00, 0x02] after the name.
+    let name_at = b
+        .windows(2)
+        .position(|w| w == [1, b'f'])
+        .expect("function name");
+    let ret_at = name_at + 2 /* len, 'f' */ + 1 /* kind */ + 1 /* params len */;
+    assert_eq!(b[ret_at], 2, "ret type tag is Bool");
+    let n = b.len() - 4;
+    let mut patched = b[..ret_at].to_vec();
+    patched.extend_from_slice(&[0, 2]); // Int(i32)
+    patched.extend_from_slice(&b[ret_at + 1..n]);
+    patched.extend_from_slice(&[0, 0, 0, 0]);
+    reseal(&mut patched);
+    b = patched;
+    match certify(&with_flags(&b, 0)) {
+        Err(CertifyError::Invalid(errs)) => assert!(!errs.is_empty()),
+        other => panic!("expected the verifier to refuse it, got {other:?}"),
+    }
+}
+
+/// `Const::Char` holds a Rust `char`, so an invalid scalar value cannot reach
+/// the verifier: the decoder is where the invariant is enforced, at exactly
+/// the boundaries the MLIR dialect checks (spec/mlir.md §2).
+#[test]
+fn char_constants_are_unicode_scalars_at_the_decoder() {
+    let module_with = |c: char| Module {
+        funcs: vec![Func {
+            name: "c".into(),
+            kind: FuncKind::Defined,
+            params: vec![],
+            ret: Type::Char,
+            slots: vec![],
+            slot_names: vec![],
+            values: vec![Type::Char],
+            blocks: vec![Block {
+                params: vec![],
+                insts: vec![Inst {
+                    result: Some(0),
+                    kind: InstKind::Const(Const::Char(c)),
+                }],
+                term: Term::Ret(0),
+            }],
+        }],
+        ..Default::default()
+    };
+    for c in ['\0', '\u{D7FF}', '\u{E000}', '\u{10FFFF}'] {
+        let b = encode(&module_with(c), None).unwrap();
+        assert!(decode(&b).is_ok(), "{c:?} must round-trip");
+    }
+    // Same-length LEB128 rewrites of a valid scalar into an invalid one.
+    for (valid, invalid, what) in [
+        ('\u{D7FF}', [0x80u8, 0xB0, 0x03], "U+D800 (surrogate)"),
+        (
+            '\u{10FFFF}',
+            [0x80u8, 0x80, 0x44],
+            "0x110000 (beyond U+10FFFF)",
+        ),
+    ] {
+        let b = encode(&module_with(valid), None).unwrap();
+        let mut leb = Vec::new();
+        let mut x = valid as u32;
+        loop {
+            let byte = (x & 0x7f) as u8;
+            x >>= 7;
+            if x == 0 {
+                leb.push(byte);
+                break;
+            }
+            leb.push(byte | 0x80);
+        }
+        let at = b
+            .windows(leb.len())
+            .position(|w| w == leb.as_slice())
+            .expect("char constant");
+        let mut bad = b.clone();
+        bad[at..at + 3].copy_from_slice(&invalid);
+        reseal(&mut bad);
+        assert!(
+            decode(&bad).unwrap_err().contains("bad char constant"),
+            "{what}"
+        );
+        assert!(
+            pegasus_pir::bridge::certify(&bad).is_err(),
+            "{what}: certify must refuse it too"
+        );
+    }
+}

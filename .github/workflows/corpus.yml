@@ -61,7 +61,7 @@ jobs:
       - name: Package-consumer smoke test (clang, MLIR tools, MLIR CMake package, lowering)
         run: python3 tools/package_llvm.py smoke --prefix "${{ runner.temp }}/llvm" --work "${{ runner.temp }}/smoke"
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DPEGASUS_LLVM_ROOT="${{ runner.temp }}/llvm"
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPEGASUS_LLVM_ROOT="${{ runner.temp }}/llvm"
       - name: Build
         run: cmake --build build
       - name: Test (unit and parser tests, grammar sync, corpus format, coverage, frozen goldens, conformance)
@@ -113,8 +113,17 @@ jobs:
         run: python tools/package_llvm.py smoke --prefix "${{ runner.temp }}/llvm" --work "${{ runner.temp }}/smoke"
       - name: Configure
         shell: bash
-        run: cmake -S . -B build -G Ninja -DPython3_EXECUTABLE="$(python -c 'import sys; print(sys.executable)')" -DPEGASUS_LLVM_ROOT="${{ runner.temp }}/llvm"
+        run: cmake -S . -B build -G Ninja -DPython3_EXECUTABLE="$(python -c 'import sys; print(sys.executable)')" -DCMAKE_BUILD_TYPE=Release -DPEGASUS_LLVM_ROOT="${{ runner.temp }}/llvm"
       - name: Build
         run: cmake --build build
       - name: Test (same suite as Linux)
         run: ctest --test-dir build --output-on-failure
+      # The pinned package is a Release build; with a multi-config generator a
+      # Debug configuration must still link against it (release runtime /MD
+      # for every target that links MLIR or the backend library).
+      - name: Debug configuration of a multi-config build links against the Release package
+        shell: bash
+        run: |
+          cmake -S . -B build-mc -G "Ninja Multi-Config" -DPython3_EXECUTABLE="$(python -c 'import sys; print(sys.executable)')" -DPEGASUS_LLVM_ROOT="${{ runner.temp }}/llvm"
+          cmake --build build-mc --config Debug --target pegasus-mlir-unit abi_test pegasus-native
+          build-mc/backend/mlir/Debug/pegasus-mlir-unit.exe

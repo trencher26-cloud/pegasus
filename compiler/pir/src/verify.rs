@@ -373,6 +373,9 @@ fn inst_type(m: &Module, f: &Func, k: &InstKind) -> Result<Option<Type>, String>
             }
             Const::Float(_, t) => Type::Float(*t),
             Const::Bool(_) => Type::Bool,
+            // A Rust `char` is a Unicode scalar value by construction (the
+            // PIRB decoder builds it with `char::from_u32`), so no check is
+            // needed or possible here (tests/bridge.rs pins the decoder).
             Const::Char(_) => Type::Char,
             Const::Str(_) => Type::Str,
         },

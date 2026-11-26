@@ -427,8 +427,63 @@ pub struct Decoded {
 
 /// Decode a PIRB file. Fails on a bad magic, an unsupported major version,
 /// a checksum mismatch, malformed or truncated data, or trailing bytes. Unknown higher minor
-/// versions are rejected too: a minor version may add tags.
+/// versions are rejected too: a minor version may add tags. The file must be
+/// marked verified, and the module must pass the verifier again.
 pub fn decode(bytes: &[u8]) -> Result<Decoded, String> {
+    let d = parse(bytes)?;
+    // Same order as the C++ reader: a missing verified bit first.
+    if d.flags & FLAG_VERIFIED == 0 {
+        return Err("module is not marked verified".into());
+    }
+    reserved_flags(d.flags)?;
+    // The reference reader checks more than the structural rules every
+    // reader must apply (spec/pir-bridge.md §3): the decoded module must
+    // pass the full verifier.
+    verify(&d.module).map_err(|e| format!("decoded module does not verify: {}", e.join("; ")))?;
+    if let Some(e) = d.entry {
+        let ok = d
+            .module
+            .funcs
+            .get(e as usize)
+            .is_some_and(|f| f.kind == FuncKind::Defined && f.params.is_empty());
+        if !ok {
+            return Err("entry is not a defined function without parameters".into());
+        }
+    }
+    Ok(d)
+}
+
+/// Why `certify` refused a file.
+#[derive(Debug, PartialEq)]
+pub enum CertifyError {
+    /// Not a well-formed PIRB file of a supported version.
+    Malformed(String),
+    /// Well-formed, but the PIR verifier rejects the module.
+    Invalid(Vec<String>),
+}
+
+/// The only way PIRB produced outside the Rust frontend becomes verified
+/// (spec/pir-bridge.md §2.3): parse a file whose flags are 0 (unverified,
+/// e.g. written by `pegasus-mlir export`) or 1, run the full PIR verifier,
+/// and re-encode it marked verified. Producers other than this crate never
+/// set the verified flag.
+pub fn certify(bytes: &[u8]) -> Result<Vec<u8>, CertifyError> {
+    let d = parse(bytes).map_err(CertifyError::Malformed)?;
+    reserved_flags(d.flags).map_err(CertifyError::Malformed)?;
+    encode(&d.module, d.entry).map_err(CertifyError::Invalid)
+}
+
+fn reserved_flags(flags: u64) -> Result<(), String> {
+    if flags & !FLAG_VERIFIED != 0 {
+        return Err(format!(
+            "reserved PIRB flag bits set ({flags:#x}; only bit 0, verified, is defined)"
+        ));
+    }
+    Ok(())
+}
+
+/// Parse a PIRB file without judging its flags or running the verifier.
+fn parse(bytes: &[u8]) -> Result<Decoded, String> {
     if bytes.len() < 12 {
         return Err(format!("truncated: {} bytes", bytes.len()));
     }
@@ -492,32 +547,11 @@ pub fn decode(bytes: &[u8]) -> Result<Decoded, String> {
     if r.p != bytes.len() {
         return Err(format!("{} trailing bytes", bytes.len() - r.p));
     }
-    if flags & FLAG_VERIFIED == 0 {
-        return Err("module is not marked verified".into());
-    }
-    if flags != FLAG_VERIFIED {
-        return Err(format!(
-            "reserved PIRB flag bits set ({flags:#x}; only bit 0, verified, is defined)"
-        ));
-    }
     let module = Module {
         structs,
         enums,
         funcs,
     };
-    // The reference reader checks more than the structural rules every
-    // reader must apply (spec/pir-bridge.md §3): the decoded module must
-    // pass the full verifier.
-    verify(&module).map_err(|e| format!("decoded module does not verify: {}", e.join("; ")))?;
-    if let Some(e) = entry {
-        let ok = module
-            .funcs
-            .get(e as usize)
-            .is_some_and(|f| f.kind == FuncKind::Defined && f.params.is_empty());
-        if !ok {
-            return Err("entry is not a defined function without parameters".into());
-        }
-    }
     Ok(Decoded {
         minor,
         flags,
