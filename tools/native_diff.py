@@ -3,7 +3,11 @@
 
 For every program, `pegasus run` (interpreter) and `pegasus build` + running
 the executable must agree on stdout, exit status and the trap message (the
-first line of stderr). Three sources of programs:
+first line of stderr). With --mlir, the test is three-way: every program is
+built by both native paths, the direct LLVM IR emitter (`pegasus-native`)
+and the MLIR lowering (`pegasus-mlir lower`, `pegasus build --backend=mlir`);
+both executables must match the interpreter, and the two backends must agree
+on which programs are outside the native subset. Sources of programs:
 
   corpus   tests/native/*.peg must all build; tests/run/*.peg must build or
            be refused as "not supported by the native backend yet"
@@ -14,10 +18,31 @@ first line of stderr). Three sources of programs:
   mutated  (--mutated FILE) NUL-separated sources, e.g. a fuzzing corpus:
            whatever the frontend accepts and the backend supports must match
 
-Usage: tools/native_diff.py <pegasus> <pegasus-native> <runtime> [--intops N]
-       [--random N] [--seed S] [--mutated FILE] [--clang CLANG] [--keep DIR]
+Usage: tools/native_diff.py <pegasus> <pegasus-native> <runtime> [--mlir PEGASUS_MLIR]
+       [--intops N] [--random N] [--seed S] [--mutated FILE] [--clang CLANG] [--keep DIR]
 """
 import argparse, glob, os, random, subprocess, sys, tempfile
+
+NO_MAIN = "has no `fn main()`"
+
+# The outcomes each kind of program may have; anything else fails the test,
+# so a regression cannot quietly shrink coverage (review of PR #4).
+#   native:  the native corpus must build and match.
+#   run:     interpreter tests may be outside the native subset (both
+#            backends refusing them), nothing else.
+#   intops:  generated within the subset, must match.
+#   random:  generated within the subset; the interpreter's step limit may
+#            stop one (not language semantics, spec/native.md §5).
+#   mutated: programs `pegasus check` accepted may also be outside the
+#            subset or have no main; any other interpreter rejection, and
+#            any timeout, fails.
+ALLOWED = {
+    "native": {"match"},
+    "run": {"match", "unsupported"},
+    "intops": {"match"},
+    "random": {"match", "step-limit"},
+    "mutated": {"match", "unsupported", "step-limit", "no-main"},
+}
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INT_TYPES = {"i8": (True, 8), "i16": (True, 16), "i32": (True, 32), "i64": (True, 64), "i128": (True, 128),
@@ -28,39 +53,59 @@ class Runner:
     def __init__(self, a):
         self.a = a
         self.env = dict(os.environ, PEGASUS_NATIVE=a.native, PEGASUS_RT=a.runtime, PEGASUS_CLANG=a.clang)
+        if a.mlir:
+            self.env["PEGASUS_MLIR"] = a.mlir
+        self.backends = ["direct"] + (["mlir"] if a.mlir else [])
         self.dir = a.keep or tempfile.mkdtemp(prefix="pg-native-")
         os.makedirs(self.dir, exist_ok=True)
         self.n = 0
 
     def compare(self, path):
-        """Returns (status, detail): status is 'match', 'unsupported', 'rejected' or 'MISMATCH'."""
+        """Returns (status, detail): 'match', 'unsupported' (both backends refuse it), 'step-limit'
+        (the interpreter's guard stopped it), 'no-main', 'rejected' or 'MISMATCH'."""
         self.n += 1
         i = subprocess.run([self.a.pegasus, "run", path], capture_output=True, text=True, timeout=120)
         if i.returncode not in (0, 101):
+            if NO_MAIN in i.stderr:
+                return "no-main", ""
             return "rejected", i.stderr.strip()[:300]
         if i.stderr.startswith("trap: step limit reached"):
             # The step limit guards the interpreter only; it is not language
             # semantics, and native code has no such limit (spec/native.md §5).
             return "step-limit", ""
-        exe = os.path.join(self.dir, f"prog{self.n}" + (".exe" if os.name == "nt" else ""))
-        b = subprocess.run([self.a.pegasus, "build", path, exe], capture_output=True, text=True,
-                           timeout=300, env=self.env)
-        if b.returncode != 0:
-            if "not supported by the native backend yet" in b.stderr:
-                return "unsupported", b.stderr.strip()
-            # The linker's own messages (MSVC link.exe) arrive on stdout.
-            return "MISMATCH", (f"build failed ({b.returncode}): {b.stderr.strip()[:2000]}"
-                                f"{chr(10) + b.stdout.strip()[:2000] if b.stdout.strip() else ''}")
-        n = subprocess.run([exe], capture_output=True, text=True, timeout=120)
-        if not self.a.keep:
-            os.remove(exe)
         first = lambda s: s.splitlines()[0] if s else ""
-        same = (i.stdout == n.stdout and i.returncode == n.returncode and first(i.stderr) == first(n.stderr))
-        if same:
-            return "match", ""
-        return "MISMATCH", (f"interpreter: exit {i.returncode} stdout {i.stdout.strip()[:300]!r} "
-                            f"stderr {first(i.stderr)!r}\n  native: exit {n.returncode} stdout "
-                            f"{n.stdout.strip()[:300]!r} stderr {first(n.stderr)!r}")
+        results = {}
+        for be in self.backends:
+            exe = os.path.join(self.dir, f"prog{self.n}.{be}" + (".exe" if os.name == "nt" else ""))
+            b = subprocess.run([self.a.pegasus, "build", f"--backend={be}", path, exe], capture_output=True,
+                               text=True, timeout=300, env=self.env)
+            if b.returncode != 0:
+                if "not supported by the native backend yet" in b.stderr:
+                    results[be] = ("unsupported", b.stderr.strip())
+                    continue
+                # The linker's own messages (MSVC link.exe) arrive on stdout.
+                results[be] = ("MISMATCH", f"{be}: build failed ({b.returncode}): {b.stderr.strip()[:2000]}"
+                               f"{chr(10) + b.stdout.strip()[:2000] if b.stdout.strip() else ''}")
+                continue
+            n = subprocess.run([exe], capture_output=True, text=True, timeout=120)
+            if not self.a.keep:
+                os.remove(exe)
+            if i.stdout == n.stdout and i.returncode == n.returncode and first(i.stderr) == first(n.stderr):
+                results[be] = ("match", "")
+            else:
+                results[be] = ("MISMATCH", f"{be}: interpreter: exit {i.returncode} stdout {i.stdout.strip()[:300]!r} "
+                               f"stderr {first(i.stderr)!r}\n  {be}: exit {n.returncode} stdout "
+                               f"{n.stdout.strip()[:300]!r} stderr {first(n.stderr)!r}")
+        sts = {st for st, _ in results.values()}
+        if "MISMATCH" in sts:
+            return "MISMATCH", "\n  ".join(d for st, d in results.values() if st == "MISMATCH")
+        if sts == {"unsupported"}:
+            return "unsupported", results["direct"][1]
+        if len(sts) > 1:
+            # One backend built the program, the other refused it.
+            return "MISMATCH", "the backends disagree on the native subset: " + "; ".join(
+                f"{be}: {st} {d[:300]}" for be, (st, d) in results.items())
+        return "match", ""
 
 
 def rng(t):
@@ -241,6 +286,7 @@ def main():
     ap.add_argument("--clang", default="clang")
     ap.add_argument("--keep")
     ap.add_argument("--mutated")
+    ap.add_argument("--mlir", help="pegasus-mlir: also build with the MLIR lowering (three-way test)")
     a = ap.parse_args()
     run = Runner(a)
     bad, counts = [], {}
@@ -248,7 +294,7 @@ def main():
     def tally(kind, st, detail, path, src=None):
         counts.setdefault(kind, {}).setdefault(st, 0)
         counts[kind][st] += 1
-        if st == "MISMATCH" or (kind == "native" and st != "match") or (kind in ("random", "intops") and st == "rejected"):
+        if st not in ALLOWED[kind]:
             bad.append(f"[{kind}] {path}: {st}: {detail}" + (f"\n----\n{src}----" if src else ""))
 
     for p in sorted(glob.glob(os.path.join(ROOT, "tests", "native", "*.peg"))):
@@ -288,8 +334,9 @@ def main():
         print(line)
     for kind, c in counts.items():
         print(f"{kind}: " + ", ".join(f"{v} {k}" for k, v in sorted(c.items())))
-    print(f"{len(bad)} failures")
+    print("backends: " + " and ".join(run.backends) + f"; {len(bad)} failures")
     sys.exit(1 if bad else 0)
 
 
-main()
+if __name__ == "__main__":
+    main()

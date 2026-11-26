@@ -18,8 +18,11 @@ through `PEGASUS_NATIVE`, the runtime through `PEGASUS_RT` (the
 `PEGASUS_CLANG` (default `clang`). The CMake build produces
 `pegasus-native`, `libpegasus_rt` and the tests.
 
-This stage emits textual LLVM IR directly; the MLIR stage (DEFERRED
-NATIVE-1) will import the same PIRB.
+`pegasus-native` emits textual LLVM IR directly. `pegasus build
+--backend=mlir` instead gets the LLVM IR from `pegasus-mlir lower`
+(found through `PEGASUS_MLIR`), which imports the same PIRB into the MLIR
+dialect and lowers it through MLIR with exactly these semantics
+(spec/mlir.md §5); the direct emitter stays the default.
 
 ## 2. The native subset
 

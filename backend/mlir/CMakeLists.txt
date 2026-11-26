@@ -27,13 +27,15 @@ else()
   list(APPEND PEGASUS_MLIR_FLAGS -fno-rtti)
 endif()
 
-add_library(pegasus_mlir STATIC lib/PegasusDialect.cpp lib/Bridge.cpp ../src/pirb_write.cpp)
+add_library(pegasus_mlir STATIC lib/PegasusDialect.cpp lib/Bridge.cpp lib/Lowering.cpp ../src/pirb_write.cpp)
 add_dependencies(pegasus_mlir PegasusDialectIncGen)
 target_compile_features(pegasus_mlir PUBLIC cxx_std_17)
 target_compile_options(pegasus_mlir PRIVATE ${PEGASUS_MLIR_FLAGS})
 target_include_directories(pegasus_mlir PUBLIC include ${CMAKE_CURRENT_BINARY_DIR}/include ../src)
 target_link_libraries(pegasus_mlir PUBLIC pegasus_backend
-  MLIRIR MLIRParser MLIRFuncDialect MLIRControlFlowInterfaces MLIRSupport)
+  MLIRIR MLIRParser MLIRFuncDialect MLIRControlFlowInterfaces MLIRSupport
+  MLIRLLVMDialect MLIRTransformUtils MLIRLLVMIRTransforms MLIRTargetLLVMIRExport
+  MLIRLLVMToLLVMIRTranslation MLIRBuiltinToLLVMIRTranslation)
 
 add_executable(pegasus-mlir tools/pegasus_mlir.cpp)
 target_compile_options(pegasus-mlir PRIVATE ${PEGASUS_MLIR_FLAGS})

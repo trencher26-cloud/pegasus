@@ -151,9 +151,19 @@ if(PEGASUS_BUILD_BACKEND)
 
   # Native executables vs the reference interpreter: corpus, integer
   # operators and generated programs (stdout, exit status, trap message).
+  # With MLIR built, three-way: the direct emitter and the MLIR lowering
+  # must both match the interpreter and agree on the native subset.
+  set(PEGASUS_DIFF_MLIR)
+  if(PEGASUS_BUILD_MLIR)
+    set(PEGASUS_DIFF_MLIR --mlir $<TARGET_FILE:pegasus-mlir>)
+  endif()
+  # The differential test's outcome policy, against a fake toolchain.
+  add_test(NAME native_diff_selftest
+    COMMAND ${Python3_EXECUTABLE} tools/native_diff_selftest.py
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
   add_test(NAME native_differential
     COMMAND ${Python3_EXECUTABLE} tools/native_diff.py ${PEGASUS_EXE}
-      $<TARGET_FILE:pegasus-native> $<TARGET_FILE:pegasus_rt>
+      $<TARGET_FILE:pegasus-native> $<TARGET_FILE:pegasus_rt> ${PEGASUS_DIFF_MLIR}
       --clang ${PEGASUS_CLANG} --intops 300 --random 60 --seed 11
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endif()

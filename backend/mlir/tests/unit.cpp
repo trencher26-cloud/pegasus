@@ -1,6 +1,7 @@
 // Unit tests for the PIRB <-> MLIR bridge on hand-built modules: shapes the
 // corpus does not produce (spec/mlir.md §3).
 #include "pegasus/mlir/Bridge.h"
+#include "pegasus/mlir/Lowering.h"
 #include "pegasus/mlir/PegasusDialect.h"
 #include "pirb_write.hpp"
 
@@ -77,6 +78,38 @@ static pir::Module loopToEntry() {
   f.blocks = {b0, b1};
   m.funcs = {f};
   m.has_entry = false;
+  return m;
+}
+
+// fn main() -> u32 = count(3): a program whose callee loops back to its
+// entry block, for the lowering.
+static pir::Module programWithLoopToEntry() {
+  pir::Module m = loopToEntry();
+  pir::Func mainF;
+  mainF.name = "main";
+  mainF.ret = intTy(pir::IntTy::U32);
+  mainF.values = {intTy(pir::IntTy::U32), intTy(pir::IntTy::U32)};
+  pir::Block b;
+  pir::Inst three;
+  three.has_result = true;
+  three.result = 0;
+  three.op = pir::Op::Const;
+  three.c.kind = pir::Const::Int;
+  three.c.ity = pir::IntTy::U32;
+  three.c.bits = {3, 0};
+  pir::Inst call;
+  call.has_result = true;
+  call.result = 1;
+  call.op = pir::Op::Call;
+  call.a = 0;
+  call.args = {0};
+  b.insts = {three, call};
+  b.term.kind = pir::Term::Ret;
+  b.term.v = 1;
+  mainF.blocks = {b};
+  m.funcs.push_back(mainF);
+  m.has_entry = true;
+  m.entry = 1;
   return m;
 }
 
@@ -303,6 +336,76 @@ int main() {
     std::printf("note: assertions enabled; MLIR's get() refuses invalid kinds itself, "
                 "unchecked-construction checks skipped\n");
 #endif
+  }
+
+  // Lowering to LLVM (spec/mlir.md §5) on shapes the corpus does not
+  // produce. Each case uses a fresh context, as `pegasus-mlir lower` does.
+  {
+    mlir::MLIRContext lctx;
+    pg::registerDialects(lctx);
+    auto lm = pg::importModule(lctx, programWithLoopToEntry());
+    CHECK(mlir::succeeded(mlir::verify(*lm)), "the program imports and verifies");
+    auto r = pg::lowerToLLVM(*lm);
+    CHECK(r.status == pg::LowerStatus::Ok, "a callee looping to its entry block lowers");
+    CHECK(mlir::succeeded(mlir::verify(*lm)), "the lowered module verifies");
+    std::string ir, terr;
+    CHECK(pg::translateToLLVMIR(*lm, ir, terr), "the lowered module translates to LLVM IR");
+    CHECK(ir.find("define i32 @main()") != std::string::npos, "with the C entry point");
+    CHECK(ir.find("@pg_rt_run") != std::string::npos && ir.find("@pg_rt_depth") != std::string::npos,
+          "running on the runtime's thread, with the call-depth counter");
+    CHECK(ir.find("stack overflow (call depth limit reached)") != std::string::npos, "and its limit");
+    CHECK(ir.find("@pg.check(") != std::string::npos, "run-time checks go through pg.check");
+  }
+  {
+    mlir::MLIRContext lctx;
+    pg::registerDialects(lctx);
+    pir::Module m = programWithLoopToEntry();
+    m.has_entry = false;
+    auto lm = pg::importModule(lctx, m);
+    auto r = pg::lowerToLLVM(*lm);
+    CHECK(r.status == pg::LowerStatus::NoEntry, "a module without an entry is refused");
+  }
+  {
+    // An unsupported operation in a block no path reaches is still refused,
+    // as by the direct emitter (which emits unreachable blocks).
+    mlir::MLIRContext lctx;
+    pg::registerDialects(lctx);
+    pir::Module m = programWithLoopToEntry();
+    pir::Func &mf = m.funcs[1];
+    auto ch = std::make_shared<pir::Type>();
+    ch->kind = pir::Type::Char;
+    mf.values.push_back(ch);
+    pir::Block dead;
+    pir::Inst c;
+    c.has_result = true;
+    c.result = 2;
+    c.op = pir::Op::Const;
+    c.c.kind = pir::Const::Char;
+    c.c.ch = 'x';
+    dead.insts = {c};
+    dead.term.kind = pir::Term::Trap;
+    dead.term.msg = "never";
+    mf.blocks.push_back(dead);
+    auto lm = pg::importModule(lctx, m);
+    CHECK(mlir::succeeded(mlir::verify(*lm)), "the module with a dead block verifies");
+    auto r = pg::lowerToLLVM(*lm);
+    CHECK(r.status == pg::LowerStatus::Unsupported && r.message == "`char` constants",
+          "an unsupported operation in an unreachable block is refused");
+  }
+  {
+    // Only what the entry needs is lowered: an unreachable function outside
+    // the native subset does not matter (spec/native.md §2).
+    mlir::MLIRContext lctx;
+    pg::registerDialects(lctx);
+    pir::Module m = programWithLoopToEntry();
+    pir::Func ext;
+    ext.name = "puts";
+    ext.defined = false;
+    ext.abi = "C";
+    ext.ret = intTy(pir::IntTy::I32);
+    m.funcs.push_back(ext);
+    auto lm = pg::importModule(lctx, m);
+    CHECK(pg::lowerToLLVM(*lm).status == pg::LowerStatus::Ok, "an unreachable extern is ignored");
   }
 
   std::printf("mlir unit tests: %d failures\n", failures);
